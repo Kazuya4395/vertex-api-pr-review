@@ -17,8 +17,8 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
-          gcp-location: ${{ secrets.GCP_LOCATION }}
           gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
+          # gcp-location: 'us-central1' # Optional: defaults to 'global'
           # Optional inputs
           # model: 'gemini-1.5-pro'
           # prompt-path: '.github/prompts/custom-prompt.md'

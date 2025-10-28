@@ -39,8 +39,8 @@ When a pull request is opened or updated, this action:
             with:
               github-token: ${{ secrets.GITHUB_TOKEN }}
               gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
-              gcp-location: ${{ secrets.GCP_LOCATION }}
               gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
+              # gcp-location: 'us-central1' # Optional: defaults to 'global'
     ```
 
 2.  **Set up secrets** in your repository's settings (`Settings` > `Secrets and variables` > `Actions`):
@@ -56,7 +56,7 @@ You can customize the action's behavior using the `with` keyword in your workflo
 | ----------------- | ------------------------------------------------------------------------- | ----------------------------- |
 | `github-token`    | The GITHUB_TOKEN secret.                                                  | N/A                           |
 | `gcp-project-id`  | Your Google Cloud Project ID.                                             | N/A                           |
-| `gcp-location`    | The Google Cloud region for your project (e.g., `us-central1`).           | N/A                           |
+| `gcp-location`    | The Google Cloud region for your project.                                 | `global`                      |
 | `gcp-credentials` | The JSON content of your GCP service account key.                         | N/A                           |
 | `model`           | The Vertex AI model to use for the review.                                | `gemini-2.5-flash`            |
 | `prompt-path`     | The path to a custom prompt file.                                         | `prompts/pr-review-prompt.md` |
@@ -71,8 +71,8 @@ You can customize the action's behavior using the `with` keyword in your workflo
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
-    gcp-location: ${{ secrets.GCP_LOCATION }}
     gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
+    gcp-location: 'us-central1' # Optional: defaults to 'global'
     model: 'gemini-1.5-pro'
     prompt-path: '.github/prompts/custom-prompt.md'
     diff-size-limit: '200000'

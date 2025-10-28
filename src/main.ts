@@ -12,7 +12,7 @@ const main = async () => {
     // action.ymlからの入力を取得
     const githubToken = core.getInput('github-token', { required: true });
     const gcpProjectId = core.getInput('gcp-project-id', { required: true });
-    const gcpLocation = core.getInput('gcp-location', { required: true });
+    const gcpLocation = core.getInput('gcp-location');
     const gcpCredentials = JSON.parse(
       core.getInput('gcp-credentials', { required: true }),
     );
