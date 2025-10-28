@@ -40,12 +40,10 @@ When a pull request is opened or updated, this action:
               github-token: ${{ secrets.GITHUB_TOKEN }}
               gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
               gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
-              # gcp-location: 'us-central1' # Optional: defaults to 'global'
     ```
 
 2.  **Set up secrets** in your repository's settings (`Settings` > `Secrets and variables` > `Actions`):
     - `GCP_PROJECT_ID`: Your Google Cloud Project ID.
-    - `GCP_LOCATION`: The Google Cloud region for your project (e.g., `us-central1`).
     - `GCP_CREDENTIALS`: The JSON content of your GCP service account key.
 
 ## Action Inputs
