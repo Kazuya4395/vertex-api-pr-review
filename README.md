@@ -28,14 +28,9 @@ When a pull request is opened or updated, this action:
           contents: read
           pull-requests: write
         steps:
-          - uses: actions/checkout@v3
-          - uses: actions/setup-node@v4
-            with:
-              node-version: '22'
-          - run: npm install
-          - run: npm run build
+          - uses: actions/checkout@v4
           - name: Run AI Code Review
-            uses: Kazuya4395/vertex-api-pr-review@v1 # Replace with your repo and version
+            uses: Kazuya4395/vertex-api-pr-review@v1
             with:
               github-token: ${{ secrets.GITHUB_TOKEN }}
               gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
