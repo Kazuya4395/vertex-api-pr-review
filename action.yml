@@ -1,0 +1,41 @@
+name: 'Vertex AI Code Review'
+description: 'Automatically review pull requests using Google Vertex AI (Gemini).'
+author: 'Your Name'
+
+inputs:
+  github-token:
+    description: 'The GITHUB_TOKEN secret.'
+    required: true
+  gcp-project-id:
+    description: 'Your Google Cloud Project ID.'
+    required: true
+  gcp-location:
+    description: 'The Google Cloud region for your project (e.g., us-central1).'
+    required: true
+  gcp-credentials:
+    description: 'The JSON content of your GCP service account key.'
+    required: true
+  model:
+    description: 'The Vertex AI model to use for the review.'
+    required: false
+    default: 'gemini-2.5-flash'
+  prompt-path:
+    description: 'The path to a custom prompt file.'
+    required: false
+    default: 'prompts/pr-review-prompt.md'
+  diff-size-limit:
+    description: 'The maximum diff size (in bytes) to review. Larger diffs will be skipped.'
+    required: false
+    default: '100000'
+  timeout:
+    description: 'The timeout (in milliseconds) for the Vertex AI API call.'
+    required: false
+    default: '120000'
+
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
+
+branding:
+  icon: 'message-square'
+  color: 'blue'
