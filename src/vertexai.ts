@@ -6,9 +6,9 @@ type GetVertexAIReviewParams = {
   gcpProjectId: string;
   gcpLocation: string;
   gcpCredentials: any; // eslint-disable-line @typescript-eslint/no-explicit-any
-  diff: string;
+  userPrompt: string; // diff
+  systemPrompt: string;
   model: string;
-  prompt: string;
   timeout: number;
 };
 
@@ -24,9 +24,9 @@ export const getVertexAIReview = async (
     gcpProjectId,
     gcpLocation,
     gcpCredentials,
-    diff,
+    userPrompt,
+    systemPrompt,
     model,
-    prompt,
     timeout,
   } = params;
 
@@ -42,11 +42,13 @@ export const getVertexAIReview = async (
   });
 
   const fullModelPath = `projects/${gcpProjectId}/locations/${gcpLocation}/publishers/google/models/${model}`;
-  const fullPrompt = prompt.replace('{{DIFF}}', diff);
 
   const request = {
     model: fullModelPath,
-    contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+    systemInstruction: {
+      parts: [{ text: systemPrompt }],
+    },
+    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
   };
 
   const [response] = await client.generateContent(request, {

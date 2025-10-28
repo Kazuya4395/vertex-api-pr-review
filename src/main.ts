@@ -18,10 +18,10 @@ const main = async () => {
       core.getInput('gcp-credentials', { required: true }),
     );
     const model = core.getInput('model');
-    let promptPath = core.getInput('prompt-path');
-    if (!promptPath) {
+    let systemPromptPath = core.getInput('system-prompt-path');
+    if (!systemPromptPath) {
       // アクションの実行ディレクトリからの相対パスでデフォルトプロンプトを指定
-      promptPath = path.join(__dirname, '../prompts/pr-review-prompt.md');
+      systemPromptPath = path.join(__dirname, '../prompts/system-prompt.md');
     }
     const diffSizeLimit = parseInt(core.getInput('diff-size-limit'), 10);
     const timeout = parseInt(core.getInput('timeout'), 10);
@@ -57,14 +57,14 @@ const main = async () => {
     }
 
     console.log('Requesting review from Vertex AI...');
-    const promptTemplate = readFileSync(promptPath, 'utf8');
+    const systemPrompt = readFileSync(systemPromptPath, 'utf8');
     const reviewComment = await getVertexAIReview({
       gcpProjectId,
       gcpLocation,
       gcpCredentials,
-      diff,
+      userPrompt: diff,
+      systemPrompt,
       model,
-      prompt: promptTemplate,
       timeout,
     });
     console.log('Review received from Vertex AI.');
