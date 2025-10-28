@@ -11,16 +11,14 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install
+      - run: npm run build
       - name: Run AI Code Review
-        uses: Kazuya4395/vertex-api-pr-review@v1 # Replace with your repo
+        uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
           gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
-          # gcp-location: 'us-central1' # Optional: defaults to 'global'
-          # Optional inputs
-          # model: 'gemini-1.5-pro'
-          # prompt-path: '.github/prompts/custom-prompt.md'
-          # diff-size-limit: '200000'
-          # timeout: '180000'

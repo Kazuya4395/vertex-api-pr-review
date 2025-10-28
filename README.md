@@ -29,9 +29,9 @@ When a pull request is opened or updated, this action:
           pull-requests: write
         steps:
           - uses: actions/checkout@v3
-          - uses: actions/setup-node@v3
+          - uses: actions/setup-node@v4
             with:
-              node-version: '18'
+              node-version: '22'
           - run: npm install
           - run: npm run build
           - name: Run AI Code Review
