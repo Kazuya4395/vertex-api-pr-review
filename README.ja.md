@@ -51,7 +51,7 @@
 | `gcp-project-id`     | あなたのGoogle CloudプロジェクトID。                                                             | N/A                |
 | `gcp-location`       | プロジェクトのGoogle Cloudリージョン。                                                           | `global`           |
 | `gcp-credentials`    | GCPサービスアカウントキーのJSONコンテンツ。                                                      | N/A                |
-| `model`              | レビューに使用するVertex AIモデル。                                                              | `gemini-2.5-flash` |
+| `model`              | レビューに使用するVertex AIモデル。（例: `gemini-1.5-pro`, `claude-3-sonnet@20240229`）          | `gemini-2.5-flash` |
 | `system-prompt-path` | カスタムシステムプロンプトファイルのパス。指定しない場合はデフォルトのプロンプトが使用されます。 | N/A                |
 | `diff-size-limit`    | レビュー対象とする差分の最大サイズ（バイト）。これを超えるとスキップされます。                   | `100000`           |
 | `timeout`            | Vertex AI API呼び出しのタイムアウト（ミリ秒）。                                                  | `120000`           |
@@ -66,7 +66,7 @@
     gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
     gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
     gcp-location: 'us-central1' # オプション: デフォルトは 'global'
-    model: 'gemini-1.5-pro'
+    model: 'claude-3-sonnet@20240229'
     system-prompt-path: '.github/prompts/my-custom-prompt.md'
     diff-size-limit: '200000'
     timeout: '180000'
