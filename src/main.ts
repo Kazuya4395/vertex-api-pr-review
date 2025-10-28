@@ -1,6 +1,7 @@
 import * as core from '@actions/core';
 import { context } from '@actions/github';
 import { readFileSync } from 'fs';
+import path from 'path';
 import { getPullRequestDiff, postCommentToGitHub } from './github';
 import { getVertexAIReview } from './vertexai';
 
@@ -17,7 +18,11 @@ const main = async () => {
       core.getInput('gcp-credentials', { required: true }),
     );
     const model = core.getInput('model');
-    const promptPath = core.getInput('prompt-path');
+    let promptPath = core.getInput('prompt-path');
+    if (!promptPath) {
+      // アクションの実行ディレクトリからの相対パスでデフォルトプロンプトを指定
+      promptPath = path.join(__dirname, '../prompts/pr-review-prompt.md');
+    }
     const diffSizeLimit = parseInt(core.getInput('diff-size-limit'), 10);
     const timeout = parseInt(core.getInput('timeout'), 10);
 

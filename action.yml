@@ -21,9 +21,8 @@ inputs:
     required: false
     default: 'gemini-2.5-flash'
   prompt-path:
-    description: 'The path to a custom prompt file.'
+    description: 'The path to a custom prompt file. If not provided, a default prompt will be used.'
     required: false
-    default: 'prompts/pr-review-prompt.md'
   diff-size-limit:
     description: 'The maximum diff size (in bytes) to review. Larger diffs will be skipped.'
     required: false
