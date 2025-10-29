@@ -30,8 +30,6 @@ export const getVertexAIReview = async (
     timeout,
   } = params;
 
-  console.log(`Using model: ${model}`);
-
   const apiEndpoint =
     gcpLocation === 'global'
       ? 'aiplatform.googleapis.com'
