@@ -30,6 +30,8 @@ export const getVertexAIReview = async (
     timeout,
   } = params;
 
+  console.log(`Using model: ${model}`);
+
   const apiEndpoint =
     gcpLocation === 'global'
       ? 'aiplatform.googleapis.com'
@@ -41,7 +43,7 @@ export const getVertexAIReview = async (
   });
 
   // モデルIDに "claude" が含まれているかで publisher を動的に切り替える
-  const publisher = model.includes('claude') ? 'anthropic' : 'google';
+  const publisher = model.startsWith('claude') ? 'anthropic' : 'google';
   const endpoint = `projects/${gcpProjectId}/locations/${gcpLocation}/publishers/${publisher}/models/${model}`;
 
   const request = {

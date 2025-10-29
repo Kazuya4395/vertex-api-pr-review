@@ -10,14 +10,14 @@ inputs:
     description: 'Your Google Cloud Project ID.'
     required: true
   gcp-location:
-    description: 'The Google Cloud region for your project.'
+    description: 'The Google Cloud region for your project. Note: Claude models are only available in specific regions like `us-east5`.'
     required: false
     default: 'global'
   gcp-credentials:
     description: 'The JSON content of your GCP service account key.'
     required: true
   model:
-    description: 'The Vertex AI model to use for the review.'
+    description: 'The Vertex AI model to use for the review. e.g. `gemini-2.5-flash-001`, `claude-3-5-sonnet@20240620`.'
     required: false
     default: 'gemini-2.5-flash'
   system-prompt-path:
