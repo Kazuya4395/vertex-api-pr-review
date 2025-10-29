@@ -5,11 +5,64 @@ const { PredictionServiceClient } = aiplatform.v1;
 type GetVertexAIReviewParams = {
   gcpProjectId: string;
   gcpLocation: string;
-  gcpCredentials: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  gcpCredentials: any;
   userPrompt: string; // diff
   systemPrompt: string;
   model: string;
   timeout: number;
+};
+
+const getClaudeReview = async (
+  client: InstanceType<typeof PredictionServiceClient>,
+  endpoint: string,
+  userPrompt: string,
+  systemPrompt: string,
+  timeout: number,
+): Promise<string> => {
+  const request = {
+    endpoint,
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: userPrompt }],
+      },
+    ],
+    system: systemPrompt,
+    tools: [],
+  };
+
+  const [response] = await client.generateContent(request, {
+    timeout,
+  });
+  return response.candidates?.[0]?.content?.parts?.[0]?.text ?? 'No feedback.';
+};
+
+const getGeminiReview = async (
+  client: InstanceType<typeof PredictionServiceClient>,
+  endpoint: string,
+  userPrompt: string,
+  systemPrompt: string,
+  timeout: number,
+): Promise<string> => {
+  const request = {
+    endpoint,
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: userPrompt }],
+      },
+    ],
+    systemInstruction: {
+      role: 'system',
+      parts: [{ text: systemPrompt }],
+    },
+    tools: [],
+  };
+
+  const [response] = await client.generateContent(request, {
+    timeout,
+  });
+  return response.candidates?.[0]?.content?.parts?.[0]?.text ?? 'No feedback.';
 };
 
 /**
@@ -40,26 +93,13 @@ export const getVertexAIReview = async (
     credentials: gcpCredentials,
   });
 
-  // モデルIDに "claude" が含まれているかで publisher を動的に切り替える
-  const publisher = model.startsWith('claude') ? 'anthropic' : 'google';
+  const isClaudeModel = model.startsWith('claude');
+  const publisher = isClaudeModel ? 'anthropic' : 'google';
   const endpoint = `projects/${gcpProjectId}/locations/${gcpLocation}/publishers/${publisher}/models/${model}`;
 
-  const request = {
-    endpoint,
-    contents: [
-      {
-        role: 'system',
-        parts: [{ text: systemPrompt }],
-      },
-      {
-        role: 'user',
-        parts: [{ text: userPrompt }],
-      },
-    ],
-  };
-
-  const [response] = await client.generateContent(request, {
-    timeout,
-  });
-  return response.candidates?.[0]?.content?.parts?.[0]?.text ?? 'No feedback.';
+  if (isClaudeModel) {
+    return getClaudeReview(client, endpoint, userPrompt, systemPrompt, timeout);
+  } else {
+    return getGeminiReview(client, endpoint, userPrompt, systemPrompt, timeout);
+  }
 };
