@@ -30,25 +30,32 @@ export const getVertexAIReview = async (
     timeout,
   } = params;
 
-  const clientOptions = {
-    apiEndpoint:
-      gcpLocation === 'global'
-        ? 'aiplatform.googleapis.com'
-        : `${gcpLocation}-aiplatform.googleapis.com`,
-  };
+  const apiEndpoint =
+    gcpLocation === 'global'
+      ? 'aiplatform.googleapis.com'
+      : `${gcpLocation}-aiplatform.googleapis.com`;
+
   const client = new PredictionServiceClient({
-    ...clientOptions,
+    apiEndpoint,
     credentials: gcpCredentials,
   });
 
-  const fullModelPath = `projects/${gcpProjectId}/locations/${gcpLocation}/publishers/google/models/${model}`;
+  // モデルIDに "claude" が含まれているかで publisher を動的に切り替える
+  const publisher = model.includes('claude') ? 'anthropic' : 'google';
+  const endpoint = `projects/${gcpProjectId}/locations/${gcpLocation}/publishers/${publisher}/models/${model}`;
 
   const request = {
-    model: fullModelPath,
-    systemInstruction: {
-      parts: [{ text: systemPrompt }],
-    },
-    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+    endpoint,
+    contents: [
+      {
+        role: 'system',
+        parts: [{ text: systemPrompt }],
+      },
+      {
+        role: 'user',
+        parts: [{ text: userPrompt }],
+      },
+    ],
   };
 
   const [response] = await client.generateContent(request, {
