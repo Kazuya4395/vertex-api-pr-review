@@ -23,11 +23,14 @@ const getClaudeReview = async (
     endpoint,
     contents: [
       {
+        role: 'system',
+        parts: [{ text: systemPrompt }],
+      },
+      {
         role: 'user',
         parts: [{ text: userPrompt }],
       },
     ],
-    system: systemPrompt,
     tools: [],
   };
 
@@ -53,7 +56,6 @@ const getGeminiReview = async (
       },
     ],
     systemInstruction: {
-      role: 'system',
       parts: [{ text: systemPrompt }],
     },
     tools: [],
