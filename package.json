@@ -1,6 +1,6 @@
 {
   "name": "vertex-api-pr-review",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "main": "vertex-pr-review.js",
   "scripts": {
     "build": "ncc build src/main.ts -o dist",
