@@ -50418,7 +50418,7 @@ const vertexai_1 = __nccwpck_require__(7883);
  * @returns Vertex AIによるレビューコメント
  */
 const getGeminiReview = async (params) => {
-    const { gcpProjectId, gcpLocation = 'global', gcpCredentials, userPrompt, systemPrompt, model, timeout, } = params;
+    const { gcpProjectId, gcpLocation = 'us-east5', gcpCredentials, userPrompt, systemPrompt, model, timeout, } = params;
     const vertexAI = new vertexai_1.VertexAI({
         project: gcpProjectId,
         location: gcpLocation,

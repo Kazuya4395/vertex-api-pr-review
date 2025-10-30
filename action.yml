@@ -1,6 +1,6 @@
 name: 'Vertex AI Code Review'
 description: 'Automatically review pull requests using Google Vertex AI (Gemini).'
-author: 'Your Name'
+author: 'Kazuya4395'
 
 inputs:
   github-token:
@@ -10,14 +10,14 @@ inputs:
     description: 'Your Google Cloud Project ID.'
     required: true
   gcp-location:
-    description: 'The Google Cloud region for your project. Note: Claude models are only available in specific regions like `us-east5`.'
+    description: 'The Google Cloud region for your project.'
     required: false
-    default: 'global'
+    default: 'us-east5'
   gcp-credentials:
     description: 'The JSON content of your GCP service account key.'
     required: true
   model:
-    description: 'The Vertex AI model to use for the review. e.g. `gemini-2.5-flash-001`, `claude-3-5-sonnet@20240620`.'
+    description: 'The Vertex AI model to use for the review. e.g. `gemini-2.5-flash`, `claude-sonnet-4-5@20250929`.'
     required: false
     default: 'gemini-2.5-flash'
   system-prompt-path:
