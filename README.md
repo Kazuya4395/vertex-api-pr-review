@@ -45,16 +45,16 @@ When a pull request is opened or updated, this action:
 
 You can customize the action's behavior using the `with` keyword in your workflow file.
 
-| Input                | Description                                                                                                                                                                                               | Default            |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| `github-token`       | The GITHUB_TOKEN secret.                                                                                                                                                                                  | N/A                |
-| `gcp-project-id`     | Your Google Cloud Project ID.                                                                                                                                                                             | N/A                |
-| `gcp-location`       | The Google Cloud region for your project.                                                                                                                                                                 | `global`           |
-| `gcp-credentials`    | The JSON content of your GCP service account key.                                                                                                                                                         | N/A                |
-| `model`              | The Vertex AI model to use for the review (e.g., `gemini-2.5-pro`, `claude-3-sonnet@20240229`). See [available models](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions?hl=ja). | `gemini-2.5-flash` |
-| `system-prompt-path` | The path to a custom system prompt file. If not provided, a default prompt will be used.                                                                                                                  | N/A                |
-| `diff-size-limit`    | The maximum diff size (in bytes) to review. Larger diffs will be skipped.                                                                                                                                 | `100000`           |
-| `timeout`            | The timeout (in milliseconds) for the Vertex AI API call.                                                                                                                                                 | `120000`           |
+| Input                | Description                                                                                                                                                                                             | Default            |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `github-token`       | The GITHUB_TOKEN secret.                                                                                                                                                                                | N/A                |
+| `gcp-project-id`     | Your Google Cloud Project ID.                                                                                                                                                                           | N/A                |
+| `gcp-location`       | The Google Cloud region for your project. Note: Claude models are only available in specific regions like `us-east5`.                                                                                   | `global`           |
+| `gcp-credentials`    | The JSON content of your GCP service account key.                                                                                                                                                       | N/A                |
+| `model`              | The Vertex AI model to use for the review (e.g., `gemini-2.5-flash`, `claude-sonnet-4-5@20250929`). See [available models](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions). | `gemini-2.5-flash` |
+| `system-prompt-path` | The path to a custom system prompt file. If not provided, a default prompt will be used.                                                                                                                | N/A                |
+| `diff-size-limit`    | The maximum diff size (in bytes) to review. Larger diffs will be skipped.                                                                                                                               | `100000`           |
+| `timeout`            | The timeout (in milliseconds) for the Vertex AI API call.                                                                                                                                               | `120000`           |
 
 ### Example with custom inputs:
 
@@ -65,8 +65,8 @@ You can customize the action's behavior using the `with` keyword in your workflo
     github-token: ${{ secrets.GITHUB_TOKEN }}
     gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
     gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
-    gcp-location: 'us-central1' # Optional: defaults to 'global'
-    model: 'claude-3-sonnet@20240229'
+    gcp-location: 'us-east5' # Optional: defaults to 'global'. Claude models require specific regions.
+    model: 'claude-sonnet-4-5@20250929'
     system-prompt-path: '.github/prompts/my-custom-prompt.md'
     diff-size-limit: '200000'
     timeout: '180000'

@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "main": "vertex-pr-review.js",
   "scripts": {
+    "dev": "npx ts-node src/vertexai/test.ts",
     "build": "ncc build src/main.ts -o dist",
     "test": "jest",
     "lint": "eslint 'src/**/*.ts'",
@@ -15,7 +16,9 @@
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.1",
-    "@google-cloud/aiplatform": "^5.12.0",
+    "@anthropic-ai/vertex-sdk": "^0.14.0",
+    "@google-cloud/vertexai": "^1.10.0",
+    "google-auth-library": "^9.4.2",
     "node-fetch": "^2.7.0"
   },
   "devDependencies": {
