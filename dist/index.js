@@ -50337,7 +50337,7 @@ const main = async () => {
             timeout,
         });
         console.log('Review received from Vertex AI.');
-        const finalComment = `🤖 **Vertex AI Review**\n\n${reviewComment}`;
+        const finalComment = `# 🤖 Vertex AI Review（${model}）\n\n${reviewComment}`;
         await (0, github_2.postCommentToGitHub)(owner, repoName, prNumber, githubToken, finalComment);
         console.log('Successfully posted review comment to GitHub.');
     }
@@ -50366,7 +50366,7 @@ const google_auth_library_1 = __nccwpck_require__(492);
  * @returns Claudeによるレビューコメント
  */
 const getClaudeReview = async (params) => {
-    const { gcpProjectId, gcpLocation, gcpCredentials, userPrompt, systemPrompt, model, } = params;
+    const { gcpProjectId, gcpLocation, gcpCredentials, userPrompt, systemPrompt, model, timeout, } = params;
     const googleAuth = new google_auth_library_1.GoogleAuth({
         credentials: gcpCredentials,
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
@@ -50375,6 +50375,7 @@ const getClaudeReview = async (params) => {
         projectId: gcpProjectId,
         region: gcpLocation,
         googleAuth,
+        timeout,
     });
     try {
         const response = await client.messages.create({
@@ -50416,7 +50417,7 @@ const vertexai_1 = __nccwpck_require__(7883);
  * @returns Vertex AIによるレビューコメント
  */
 const getGeminiReview = async (params) => {
-    const { gcpProjectId, gcpLocation, gcpCredentials, userPrompt, systemPrompt, model, } = params;
+    const { gcpProjectId, gcpLocation, gcpCredentials, userPrompt, systemPrompt, model, timeout, } = params;
     const vertexAI = new vertexai_1.VertexAI({
         project: gcpProjectId,
         location: gcpLocation,
@@ -50431,6 +50432,7 @@ const getGeminiReview = async (params) => {
         });
         const request = {
             contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+            timeout,
         };
         const resp = await generativeModel.generateContent(request);
         const response = resp.response;
