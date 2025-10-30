@@ -68,7 +68,7 @@ const main = async () => {
     });
     console.log('Review received from Vertex AI.');
 
-    const finalComment = `🤖 **Vertex AI Review**\n\n${reviewComment}`;
+    const finalComment = `# 🤖 Vertex AI Review（${model}）\n\n${reviewComment}`;
     await postCommentToGitHub(
       owner,
       repoName,

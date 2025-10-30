@@ -8,6 +8,7 @@ type GetClaudeReviewParams = {
   userPrompt: string;
   systemPrompt: string;
   model: string;
+  timeout: number;
 };
 
 /**
@@ -25,6 +26,7 @@ export const getClaudeReview = async (
     userPrompt,
     systemPrompt,
     model,
+    timeout,
   } = params;
 
   const googleAuth = new GoogleAuth({
@@ -36,6 +38,7 @@ export const getClaudeReview = async (
     projectId: gcpProjectId,
     region: gcpLocation,
     googleAuth,
+    timeout,
   });
 
   try {

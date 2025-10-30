@@ -25,6 +25,7 @@ export const getGeminiReview = async (
     userPrompt,
     systemPrompt,
     model,
+    timeout,
   } = params;
 
   const vertexAI = new VertexAI({
@@ -43,6 +44,7 @@ export const getGeminiReview = async (
 
     const request = {
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+      timeout,
     };
 
     const resp = await generativeModel.generateContent(request);
