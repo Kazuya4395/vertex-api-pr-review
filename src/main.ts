@@ -20,7 +20,6 @@ const main = async () => {
     const model = core.getInput('model');
     let systemPromptPath = core.getInput('system-prompt-path');
     if (!systemPromptPath) {
-      // アクションの実行ディレクトリからの相対パスでデフォルトプロンプトを指定
       systemPromptPath = path.join(__dirname, '../prompts/system-prompt.md');
     }
     const diffSizeLimit = parseInt(core.getInput('diff-size-limit'), 10);

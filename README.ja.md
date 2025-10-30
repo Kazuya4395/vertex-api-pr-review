@@ -45,16 +45,16 @@
 
 ワークフローファイルの `with` キーワードを使って、アクションの挙動をカスタマイズできます。
 
-| 入力                 | 説明                                                                                                                                                                                                                      | デフォルト値       |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| `github-token`       | `GITHUB_TOKEN` シークレット。                                                                                                                                                                                             | N/A                |
-| `gcp-project-id`     | あなたのGoogle CloudプロジェクトID。                                                                                                                                                                                      | N/A                |
-| `gcp-location`       | プロジェクトのGoogle Cloudリージョン。                                                                                                                                                                                    | `global`           |
-| `gcp-credentials`    | GCPサービスアカウントキーのJSONコンテンツ。                                                                                                                                                                               | N/A                |
-| `model`              | レビューに使用するVertex AIモデル。（例: `gemini-2.5-pro`, `claude-3-sonnet@20240229`）。利用可能なモデルは[こちら](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions?hl=ja)を参照してください。 | `gemini-2.5-flash` |
-| `system-prompt-path` | カスタムシステムプロンプトファイルのパス。指定しない場合はデフォルトのプロンプトが使用されます。                                                                                                                          | N/A                |
-| `diff-size-limit`    | レビュー対象とする差分の最大サイズ（バイト）。これを超えるとスキップされます。                                                                                                                                            | `100000`           |
-| `timeout`            | Vertex AI API呼び出しのタイムアウト（ミリ秒）。                                                                                                                                                                           | `120000`           |
+| 入力                 | 説明                                                                                                                                                                                                                    | デフォルト値       |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `github-token`       | `GITHUB_TOKEN` シークレット。                                                                                                                                                                                           | N/A                |
+| `gcp-project-id`     | あなたのGoogle CloudプロジェクトID。                                                                                                                                                                                    | N/A                |
+| `gcp-location`       | プロジェクトのGoogle Cloudリージョン。注意: Claudeモデルは `us-east5` のような特定のリージョンでのみ利用可能です。                                                                                                      | `global`           |
+| `gcp-credentials`    | GCPサービスアカウントキーのJSONコンテンツ。                                                                                                                                                                             | N/A                |
+| `model`              | レビューに使用するVertex AIモデル。（例: `gemini-2.5-flash`, `claude-sonnet-4-5@20250929`）。利用可能なモデルは[こちら](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions)を参照してください。 | `gemini-2.5-flash` |
+| `system-prompt-path` | カスタムシステムプロンプトファイルのパス。指定しない場合はデフォルトのプロンプトが使用されます。                                                                                                                        | N/A                |
+| `diff-size-limit`    | レビュー対象とする差分の最大サイズ（バイト）。これを超えるとスキップされます。                                                                                                                                          | `100000`           |
+| `timeout`            | Vertex AI API呼び出しのタイムアウト（ミリ秒）。                                                                                                                                                                         | `120000`           |
 
 ### カスタム入力の例:
 
@@ -65,8 +65,8 @@
     github-token: ${{ secrets.GITHUB_TOKEN }}
     gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
     gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
-    gcp-location: 'us-central1' # オプション: デフォルトは 'global'
-    model: 'claude-3-sonnet@20240229'
+    gcp-location: 'us-east5' # オプション: デフォルトは 'global'。Claudeモデルには特定のリージョンが必要です。
+    model: 'claude-sonnet-4-5@20250929'
     system-prompt-path: '.github/prompts/my-custom-prompt.md'
     diff-size-limit: '200000'
     timeout: '180000'
