@@ -49,7 +49,7 @@
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
 | `github-token`       | `GITHUB_TOKEN` シークレット。                                                                                                                                                                                           | N/A                |
 | `gcp-project-id`     | あなたのGoogle CloudプロジェクトID。                                                                                                                                                                                    | N/A                |
-| `gcp-location`       | プロジェクトのGoogle Cloudリージョン。注意: Claudeモデルは `us-east5` のような特定のリージョンでのみ利用可能です。                                                                                                      | `global`           |
+| `gcp-location`       | プロジェクトのGoogle Cloudリージョン。注意: Claudeモデルは `us-east5` のような特定のリージョンでのみ利用可能です。                                                                                                      | `us-east5`         |
 | `gcp-credentials`    | GCPサービスアカウントキーのJSONコンテンツ。                                                                                                                                                                             | N/A                |
 | `model`              | レビューに使用するVertex AIモデル。（例: `gemini-2.5-flash`, `claude-sonnet-4-5@20250929`）。利用可能なモデルは[こちら](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions)を参照してください。 | `gemini-2.5-flash` |
 | `system-prompt-path` | カスタムシステムプロンプトファイルのパス。指定しない場合はデフォルトのプロンプトが使用されます。                                                                                                                        | N/A                |
@@ -65,7 +65,7 @@
     github-token: ${{ secrets.GITHUB_TOKEN }}
     gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
     gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
-    gcp-location: 'us-east5' # オプション: デフォルトは 'global'。Claudeモデルには特定のリージョンが必要です。
+    gcp-location: 'us-east5' # オプション: デフォルトは 'us-east5'。
     model: 'claude-sonnet-4-5@20250929'
     system-prompt-path: '.github/prompts/my-custom-prompt.md'
     diff-size-limit: '200000'

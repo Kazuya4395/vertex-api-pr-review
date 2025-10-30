@@ -1,14 +1,5 @@
 import { VertexAI } from '@google-cloud/vertexai';
-
-type GetVertexAIReviewParams = {
-  gcpProjectId: string;
-  gcpLocation?: string;
-  gcpCredentials: any;
-  userPrompt: string;
-  systemPrompt: string;
-  model: string;
-  timeout: number;
-};
+import { GetVertexAIReviewParams } from '.';
 
 /**
  * Vertex AIを使用してPRのレビューを取得します。
@@ -20,7 +11,7 @@ export const getGeminiReview = async (
 ): Promise<string> => {
   const {
     gcpProjectId,
-    gcpLocation = 'global',
+    gcpLocation = 'us-east5',
     gcpCredentials,
     userPrompt,
     systemPrompt,

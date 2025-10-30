@@ -1,14 +1,4 @@
-import { getVertexAIReview } from './index';
-
-type GetVertexAIReviewParams = {
-  gcpProjectId: string;
-  gcpLocation: string;
-  gcpCredentials: any;
-  userPrompt: string;
-  systemPrompt: string;
-  model: string;
-  timeout: number;
-};
+import { getVertexAIReview, GetVertexAIReviewParams } from './index';
 
 const main = async (): Promise<void> => {
   const gcpProjectId = '';
@@ -33,7 +23,7 @@ index f2269a9..9d1a632 100644
    } catch (error) {
 `,
     systemPrompt: '日本語でレビューしてください。',
-    model: 'claude-sonnet-4-5@20250929',
+    model: 'gemini-2.5-pro',
     timeout: 30000,
   };
 

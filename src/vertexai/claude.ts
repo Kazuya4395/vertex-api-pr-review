@@ -1,15 +1,6 @@
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import { GoogleAuth } from 'google-auth-library';
-
-type GetClaudeReviewParams = {
-  gcpProjectId: string;
-  gcpLocation?: string;
-  gcpCredentials: any;
-  userPrompt: string;
-  systemPrompt: string;
-  model: string;
-  timeout: number;
-};
+import { GetVertexAIReviewParams } from '.';
 
 /**
  * Claudeを使用してPRのレビューを取得します。
@@ -17,7 +8,7 @@ type GetClaudeReviewParams = {
  * @returns Claudeによるレビューコメント
  */
 export const getClaudeReview = async (
-  params: GetClaudeReviewParams,
+  params: GetVertexAIReviewParams,
 ): Promise<string> => {
   const {
     gcpProjectId,

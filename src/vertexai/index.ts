@@ -1,7 +1,7 @@
 import { getClaudeReview } from './claude';
 import { getGeminiReview } from './gemini';
 
-type GetVertexAIReviewParams = {
+export type GetVertexAIReviewParams = {
   gcpProjectId: string;
   gcpLocation?: string;
   gcpCredentials: any;
