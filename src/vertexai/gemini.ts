@@ -2,7 +2,7 @@ import { VertexAI } from '@google-cloud/vertexai';
 
 type GetVertexAIReviewParams = {
   gcpProjectId: string;
-  gcpLocation: string;
+  gcpLocation?: string;
   gcpCredentials: any;
   userPrompt: string;
   systemPrompt: string;
@@ -20,7 +20,7 @@ export const getGeminiReview = async (
 ): Promise<string> => {
   const {
     gcpProjectId,
-    gcpLocation,
+    gcpLocation = 'global',
     gcpCredentials,
     userPrompt,
     systemPrompt,

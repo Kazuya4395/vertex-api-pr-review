@@ -3,7 +3,7 @@ import { GoogleAuth } from 'google-auth-library';
 
 type GetClaudeReviewParams = {
   gcpProjectId: string;
-  gcpLocation: string;
+  gcpLocation?: string;
   gcpCredentials: any;
   userPrompt: string;
   systemPrompt: string;
@@ -21,7 +21,7 @@ export const getClaudeReview = async (
 ): Promise<string> => {
   const {
     gcpProjectId,
-    gcpLocation,
+    gcpLocation = 'us-east5',
     gcpCredentials,
     userPrompt,
     systemPrompt,

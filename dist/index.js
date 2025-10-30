@@ -50325,6 +50325,7 @@ const main = async () => {
             return;
         }
         console.log(`Using model: ${model}`);
+        console.log(`Using location: ${gcpLocation}`);
         console.log('Requesting review from Vertex AI...');
         const systemPrompt = (0, fs_1.readFileSync)(systemPromptPath, 'utf8');
         const reviewComment = await (0, vertexai_1.getVertexAIReview)({
@@ -50366,7 +50367,7 @@ const google_auth_library_1 = __nccwpck_require__(492);
  * @returns Claudeによるレビューコメント
  */
 const getClaudeReview = async (params) => {
-    const { gcpProjectId, gcpLocation, gcpCredentials, userPrompt, systemPrompt, model, timeout, } = params;
+    const { gcpProjectId, gcpLocation = 'us-east5', gcpCredentials, userPrompt, systemPrompt, model, timeout, } = params;
     const googleAuth = new google_auth_library_1.GoogleAuth({
         credentials: gcpCredentials,
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
@@ -50417,7 +50418,7 @@ const vertexai_1 = __nccwpck_require__(7883);
  * @returns Vertex AIによるレビューコメント
  */
 const getGeminiReview = async (params) => {
-    const { gcpProjectId, gcpLocation, gcpCredentials, userPrompt, systemPrompt, model, timeout, } = params;
+    const { gcpProjectId, gcpLocation = 'global', gcpCredentials, userPrompt, systemPrompt, model, timeout, } = params;
     const vertexAI = new vertexai_1.VertexAI({
         project: gcpProjectId,
         location: gcpLocation,

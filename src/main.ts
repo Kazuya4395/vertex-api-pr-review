@@ -55,6 +55,7 @@ const main = async () => {
       return;
     }
     console.log(`Using model: ${model}`);
+    console.log(`Using location: ${gcpLocation}`);
     console.log('Requesting review from Vertex AI...');
     const systemPrompt = readFileSync(systemPromptPath, 'utf8');
     const reviewComment = await getVertexAIReview({

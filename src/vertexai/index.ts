@@ -3,7 +3,7 @@ import { getGeminiReview } from './gemini';
 
 type GetVertexAIReviewParams = {
   gcpProjectId: string;
-  gcpLocation: string;
+  gcpLocation?: string;
   gcpCredentials: any;
   userPrompt: string;
   systemPrompt: string;
