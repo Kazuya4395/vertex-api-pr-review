@@ -1,24 +1,25 @@
+import { ReviewResult } from '../types/review';
 import { getClaudeReview } from './claude';
 import { getGeminiReview } from './gemini';
 
-export type GetVertexAIReviewParams = {
+export type RunLLMParams = {
   gcpProjectId: string;
   gcpLocation?: string;
-  gcpCredentials: any;
+  gcpCredentials: Record<string, unknown>;
   userPrompt: string;
   systemPrompt: string;
   model: string;
   timeout: number;
+  maxOutputTokens: number;
 };
 
 /**
- * Vertex AIを使用してPRのレビューを取得します。
- * @param params - レビュー取得に必要なパラメータ
- * @returns Vertex AIによるレビューコメント
+ * Vertex AI LLM を呼び出し ReviewResult を返す。
+ * model 名に 'claude' が含まれるかで dispatch する。
  */
-export const getVertexAIReview = async (
-  params: GetVertexAIReviewParams,
-): Promise<string> => {
+export const runLLM = async (
+  params: RunLLMParams,
+): Promise<ReviewResult> => {
   const { model } = params;
 
   if (model.includes('claude')) {

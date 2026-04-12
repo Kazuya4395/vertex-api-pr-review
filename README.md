@@ -1,80 +1,118 @@
-# AI Code Review Action
+# Vertex AI Code Review Action
 
-This GitHub Action uses Google's Vertex AI (Gemini) to automatically review your pull requests. It helps improve code quality by providing instant feedback on potential bugs, readability, and maintainability.
+A GitHub Action that provides **structured PR review** using Google Vertex AI (Gemini / Claude). Posts inline comments with severity levels, committable suggestions, and an AI Review Summary.
 
-## How It Works
+[Japanese / 日本語](./README.ja.md)
 
-When a pull request is opened or updated, this action:
+## Features
 
-1.  Fetches the diff of the pull request.
-2.  Sends the diff to the Vertex AI API with a configurable prompt.
-3.  Posts the AI-generated review as a comment on the pull request.
+- Inline review comments with severity levels (P0-P3) and committable suggestions
+- AI Review Summary with confidence score, important files table, and Mermaid diagrams
+- Supports both **Gemini** and **Claude** models via Vertex AI
+- Idempotent: re-runs clean up previous comments and update the summary
+- Configurable severity threshold, file limits, and diff size limits
 
 ## Usage
 
-1.  **Create a workflow file** in your repository (e.g., `.github/workflows/review.yml`):
+```yaml
+name: AI Code Review
 
-    ```yaml
-    name: AI Code Review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
 
-    on:
-      pull_request:
-        types: [opened, synchronize]
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
-    jobs:
-      review:
-        runs-on: ubuntu-latest
-        permissions:
-          contents: read
-          pull-requests: write
-        steps:
-          - uses: actions/checkout@v4
-          - name: Run AI Code Review
-            uses: Kazuya4395/vertex-api-pr-review@v1
-            with:
-              github-token: ${{ secrets.GITHUB_TOKEN }}
-              gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
-              gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
-    ```
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run AI Code Review
+        uses: Kazuya4395/vertex-api-pr-review@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
+          gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
+```
 
-2.  **Set up secrets** in your repository's settings (`Settings` > `Secrets and variables` > `Actions`):
-    - `GCP_PROJECT_ID`: Your Google Cloud Project ID.
-    - `GCP_CREDENTIALS`: The JSON content of your GCP service account key.
+### Required Secrets
 
-## Action Inputs
+| Secret | Description |
+|--------|-------------|
+| `GCP_PROJECT_ID` | Your Google Cloud Project ID |
+| `GCP_CREDENTIALS` | JSON content of your GCP service account key |
 
-You can customize the action's behavior using the `with` keyword in your workflow file.
+## Inputs
 
-| Input                | Description                                                                                                                                                                                             | Default            |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| `github-token`       | The GITHUB_TOKEN secret.                                                                                                                                                                                | N/A                |
-| `gcp-project-id`     | Your Google Cloud Project ID.                                                                                                                                                                           | N/A                |
-| `gcp-location`       | The Google Cloud region for your project. Note: Claude models are only available in specific regions like `us-east5`.                                                                                   | `us-east5`         |
-| `gcp-credentials`    | The JSON content of your GCP service account key.                                                                                                                                                       | N/A                |
-| `model`              | The Vertex AI model to use for the review (e.g., `gemini-2.5-flash`, `claude-sonnet-4-5@20250929`). See [available models](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions). | `gemini-2.5-flash` |
-| `system-prompt-path` | The path to a custom system prompt file. If not provided, a default prompt will be used.                                                                                                                | N/A                |
-| `diff-size-limit`    | The maximum diff size (in bytes) to review. Larger diffs will be skipped.                                                                                                                               | `100000`           |
-| `timeout`            | The timeout (in milliseconds) for the Vertex AI API call.                                                                                                                                               | `120000`           |
+| Input | Description | Default |
+|-------|-------------|---------|
+| `github-token` | The GITHUB_TOKEN secret | (required) |
+| `gcp-project-id` | Your Google Cloud Project ID | (required) |
+| `gcp-location` | Google Cloud region. Claude models require specific regions like `us-east5` | `us-east5` |
+| `gcp-credentials` | JSON content of your GCP service account key | (required) |
+| `model` | Vertex AI model name (e.g. `gemini-2.5-pro`, `claude-sonnet-4-5@20250929`) | `gemini-2.5-pro` |
+| `system-prompt-path` | Path to a custom system prompt. Output must be `ReviewResult` JSON | `prompts/pr-review/system.ja.md` |
+| `diff-size-limit` | Maximum total diff size in bytes | `100000` |
+| `timeout` | Timeout in milliseconds for the Vertex AI API call | `120000` |
+| `max-files` | Maximum number of files to review | `50` |
+| `max-comments` | Maximum inline comments to post. Excess goes to summary | `20` |
+| `per-file-diff-limit` | Maximum diff size per file in bytes | `30000` |
+| `severity-threshold` | Minimum severity to post inline (`P0`, `P1`, `P2`, `P3`) | `P3` |
+| `language` | Review language (`ja` or `en`). Only `ja` is supported; `en` falls back to `ja` | `ja` |
+| `review-drafts` | Whether to review draft PRs | `false` |
+| `max-output-tokens` | Maximum output tokens for LLM. Increase if JSON is truncated | `8192` |
 
-### Example with custom inputs:
+### Example with All Inputs
 
 ```yaml
 - name: Run AI Code Review
-  uses: Kazuya4395/vertex-api-pr-review@v1 # Replace with your repo and version
+  uses: Kazuya4395/vertex-api-pr-review@v2
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
     gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
-    gcp-location: 'us-east5' # Optional: defaults to 'us-east5'.
-    model: 'claude-sonnet-4-5@20250929'
-    system-prompt-path: '.github/prompts/my-custom-prompt.md'
-    diff-size-limit: '200000'
-    timeout: '180000'
+    model: 'gemini-2.5-pro'
+    max-files: '30'
+    max-comments: '15'
+    per-file-diff-limit: '20000'
+    severity-threshold: 'P2'
+    review-drafts: 'true'
+    max-output-tokens: '16384'
+```
+
+## Behavior
+
+- **Review format**: Posts a `pulls.createReview` with inline comments + a separate AI Review Summary as an issue comment
+- **PR Description**: Never modified (DL-02)
+- **Idempotency**: Re-runs delete old inline comments (marked with `<!-- ai-review-inline -->`) and upsert the summary comment (marked with `<!-- ai-review-summary -->`)
+- **Review count**: The summary tracks review count via `<!-- ai-review-count=N -->` hidden marker
+- **Severity filter**: Comments below `severity-threshold` are excluded from inline posting
+- **Overflow handling**: Comments exceeding `max-comments` are included in the summary only
+- **Draft PRs**: Skipped by default unless `review-drafts: true`
+- **createReview failure**: If inline posting fails with 422/403, falls back to summary-only (DL-07)
+- **Language**: Only Japanese (`ja`) is supported. `en` logs a warning and falls back to `ja` (DL-04)
+- **Custom prompts**: Must output `ReviewResult` JSON schema. See `src/types/review.ts` for the type definition
+
+## Concurrency
+
+Use `concurrency` in your workflow to prevent parallel executions on the same PR, which can cause comment conflicts:
+
+```yaml
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 ```
 
 ## Development
 
-1.  Clone the repository.
-2.  Install dependencies: `npm install`
-3.  Run tests: `npm test`
-4.  Build the project: `npm run build`
+```bash
+npm install
+npm test
+npm run build
+```

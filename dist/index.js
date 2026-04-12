@@ -50182,64 +50182,236 @@ function wrappy (fn, cb) {
 
 /***/ }),
 
-/***/ 9248:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+/***/ 6584:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.postCommentToGitHub = exports.getPullRequestDiff = void 0;
-const node_fetch_1 = __importDefault(__nccwpck_require__(6705));
-/**
- * GitHubからPull Requestの差分を取得します。
- * @param owner - リポジトリのオーナー
- * @param repo - リポジトリ名
- * @param prNumber - Pull Requestの番号
- * @param token - GitHubトークン
- * @returns PRの差分テキスト
- */
-const getPullRequestDiff = async (owner, repo, prNumber, token) => {
-    const diffUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`;
-    const response = await (0, node_fetch_1.default)(diffUrl, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: 'application/vnd.github.v3.diff',
-        },
-    });
-    if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Failed to fetch diff: ${response.status} ${errorBody}`);
+exports.createClient = void 0;
+const github_1 = __nccwpck_require__(3228);
+const createClient = (token) => (0, github_1.getOctokit)(token);
+exports.createClient = createClient;
+
+
+/***/ }),
+
+/***/ 6645:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.updateIssueComment = exports.createIssueComment = exports.listIssueComments = void 0;
+const listIssueComments = async (client, owner, repo, issueNumber) => {
+    const comments = [];
+    let page = 1;
+    for (;;) {
+        const { data } = await client.rest.issues.listComments({
+            owner,
+            repo,
+            issue_number: issueNumber,
+            per_page: 100,
+            page,
+        });
+        comments.push(...data);
+        if (data.length < 100)
+            break;
+        page++;
     }
-    return response.text();
+    return comments;
 };
-exports.getPullRequestDiff = getPullRequestDiff;
+exports.listIssueComments = listIssueComments;
+const createIssueComment = (client, owner, repo, issueNumber, body) => client.rest.issues.createComment({
+    owner,
+    repo,
+    issue_number: issueNumber,
+    body,
+});
+exports.createIssueComment = createIssueComment;
+const updateIssueComment = (client, owner, repo, commentId, body) => client.rest.issues.updateComment({
+    owner,
+    repo,
+    comment_id: commentId,
+    body,
+});
+exports.updateIssueComment = updateIssueComment;
+
+
+/***/ }),
+
+/***/ 4196:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.snapCommentToValidLine = exports.parsePatchToLineMap = void 0;
 /**
- * GitHubのPull Requestにコメントを投稿します。
- * @param owner - リポジトリのオーナー
- * @param repo - リポジトリ名
- * @param prNumber - Pull Requestの番号
- * @param token - GitHubトークン
- * @param body - コメントの本文
+ * unified diff の patch 文字列を解析し、新ファイル側の有効行セット(validLines)を構築する。
+ * '+' 行と ' '(context) 行を validLines に追加し、'-' 行はスキップする。
  */
-const postCommentToGitHub = async (owner, repo, prNumber, token, body) => {
-    const commentUrl = `https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/comments`;
-    const response = await (0, node_fetch_1.default)(commentUrl, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ body }),
-    });
-    if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Failed to post comment to GitHub: ${response.status} ${errorBody}`);
+const parsePatchToLineMap = (patch) => {
+    const validLines = new Set();
+    if (!patch)
+        return { validLines };
+    // CRLF → LF に正規化
+    const normalized = patch.replace(/\r\n/g, '\n');
+    const lines = normalized.split('\n');
+    let newLine = 0;
+    for (const line of lines) {
+        // hunk header: @@ -a,b +c,d @@
+        const hunkMatch = line.match(/^@@\s+-\d+(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/);
+        if (hunkMatch) {
+            newLine = parseInt(hunkMatch[1], 10);
+            continue;
+        }
+        // 先頭文字で判定
+        if (line.startsWith('+')) {
+            // 追加行: 新ファイル側の有効行
+            validLines.add(newLine);
+            newLine++;
+        }
+        else if (line.startsWith('-')) {
+            // 削除行: 新ファイル側行番号は進まない
+        }
+        else if (line.startsWith(' ')) {
+            // context 行: 新ファイル側の有効行
+            validLines.add(newLine);
+            newLine++;
+        }
+        else if (line.startsWith('\\')) {
+            // "\ No newline at end of file" — 行番号は進まない
+        }
+        else if (newLine > 0 && line.length > 0) {
+            // context 行（先頭スペースが欠落しているケース）
+            // 一部の diff ツールは context 行の先頭スペースを省略することがある
+            validLines.add(newLine);
+            newLine++;
+        }
     }
+    return { validLines };
 };
-exports.postCommentToGitHub = postCommentToGitHub;
+exports.parsePatchToLineMap = parsePatchToLineMap;
+/**
+ * LLM が返したコメントの行番号が validLines に無い場合、最近傍の有効行へスナップする。
+ * スナップ不能（maxDistance 内に有効行なし）な場合は null を返す（= サマリ退避）。
+ */
+const snapCommentToValidLine = (comment, lineMap, maxDistance = 3) => {
+    const { validLines } = lineMap;
+    // 複数行コメントの場合: startLine と line の両方が有効であることを確認
+    if (comment.startLine !== undefined) {
+        const startValid = validLines.has(comment.startLine);
+        const endValid = validLines.has(comment.line);
+        if (startValid && endValid) {
+            return { comment, snapped: false };
+        }
+        // 複数行で片方でも無効ならスナップ対象（startLine/line を個別にスナップ）
+        const snappedStart = startValid
+            ? comment.startLine
+            : findNearest(validLines, comment.startLine, maxDistance);
+        const snappedEnd = endValid
+            ? comment.line
+            : findNearest(validLines, comment.line, maxDistance);
+        if (snappedStart === null || snappedEnd === null)
+            return null;
+        if (snappedStart > snappedEnd)
+            return null;
+        return {
+            comment: { ...comment, startLine: snappedStart, line: snappedEnd },
+            snapped: true,
+        };
+    }
+    // 単一行コメント
+    if (validLines.has(comment.line)) {
+        return { comment, snapped: false };
+    }
+    const nearest = findNearest(validLines, comment.line, maxDistance);
+    if (nearest === null)
+        return null;
+    return {
+        comment: { ...comment, line: nearest },
+        snapped: true,
+    };
+};
+exports.snapCommentToValidLine = snapCommentToValidLine;
+/** maxDistance 以内で最近傍の有効行を探す。同距離なら前方(小さい行)を優先。 */
+const findNearest = (validLines, target, maxDistance) => {
+    for (let d = 1; d <= maxDistance; d++) {
+        if (validLines.has(target - d))
+            return target - d;
+        if (validLines.has(target + d))
+            return target + d;
+    }
+    return null;
+};
+
+
+/***/ }),
+
+/***/ 4487:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.deleteReviewComment = exports.listReviewComments = exports.createReview = exports.listFiles = exports.getPullRequest = void 0;
+const getPullRequest = (client, owner, repo, pullNumber) => client.rest.pulls.get({ owner, repo, pull_number: pullNumber });
+exports.getPullRequest = getPullRequest;
+const listFiles = async (client, owner, repo, pullNumber) => {
+    const files = [];
+    let page = 1;
+    for (;;) {
+        const { data } = await client.rest.pulls.listFiles({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            per_page: 100,
+            page,
+        });
+        files.push(...data);
+        if (data.length < 100)
+            break;
+        page++;
+    }
+    return files;
+};
+exports.listFiles = listFiles;
+const createReview = (client, params) => client.rest.pulls.createReview({
+    owner: params.owner,
+    repo: params.repo,
+    pull_number: params.pullNumber,
+    commit_id: params.commitId,
+    body: params.body,
+    event: 'COMMENT',
+    comments: params.comments,
+});
+exports.createReview = createReview;
+const listReviewComments = async (client, owner, repo, pullNumber) => {
+    const comments = [];
+    let page = 1;
+    for (;;) {
+        const { data } = await client.rest.pulls.listReviewComments({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            per_page: 100,
+            page,
+        });
+        comments.push(...data);
+        if (data.length < 100)
+            break;
+        page++;
+    }
+    return comments;
+};
+exports.listReviewComments = listReviewComments;
+const deleteReviewComment = (client, owner, repo, commentId) => client.rest.pulls.deleteReviewComment({
+    owner,
+    repo,
+    comment_id: commentId,
+});
+exports.deleteReviewComment = deleteReviewComment;
 
 
 /***/ }),
@@ -50282,72 +50454,787 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const core = __importStar(__nccwpck_require__(7484));
+const github_1 = __nccwpck_require__(3228);
+const client_1 = __nccwpck_require__(6584);
+const fetchContext_1 = __nccwpck_require__(7303);
+const planReview_1 = __nccwpck_require__(7783);
+const runLLM_1 = __nccwpck_require__(712);
+const postReview_1 = __nccwpck_require__(282);
+/**
+ * action.yml の入力をパースして ActionInputs に変換する。
+ */
+const readInputs = () => ({
+    githubToken: core.getInput('github-token', { required: true }),
+    gcpProjectId: core.getInput('gcp-project-id', { required: true }),
+    gcpLocation: core.getInput('gcp-location') || 'us-east5',
+    gcpCredentials: JSON.parse(core.getInput('gcp-credentials', { required: true })),
+    model: core.getInput('model') || 'gemini-2.5-pro',
+    systemPromptPath: core.getInput('system-prompt-path') || '',
+    diffSizeLimit: parseInt(core.getInput('diff-size-limit'), 10) || 100000,
+    timeout: parseInt(core.getInput('timeout'), 10) || 120000,
+    maxFiles: parseInt(core.getInput('max-files'), 10) || 50,
+    maxComments: parseInt(core.getInput('max-comments'), 10) || 20,
+    perFileDiffLimit: parseInt(core.getInput('per-file-diff-limit'), 10) || 30000,
+    severityThreshold: (core.getInput('severity-threshold') || 'P3'),
+    language: (core.getInput('language') || 'ja'),
+    reviewDrafts: core.getBooleanInput('review-drafts', { required: false }) || false,
+    maxOutputTokens: parseInt(core.getInput('max-output-tokens'), 10) || 8192,
+});
+const main = async () => {
+    const totalStart = Date.now();
+    try {
+        const inputs = readInputs();
+        // NFR-003: シークレットをマスク
+        core.setSecret(JSON.stringify(inputs.gcpCredentials));
+        const client = (0, client_1.createClient)(inputs.githubToken);
+        const { owner, repo } = github_1.context.repo;
+        const pr = github_1.context.payload.pull_request;
+        if (!pr) {
+            throw new Error('This action can only be run on pull_request events.');
+        }
+        const pullNumber = pr.number;
+        // FR-001: Draft PR は既定で除外
+        if (pr.draft && !inputs.reviewDrafts) {
+            core.info('Skipping draft PR (set review-drafts: true to enable)');
+            return;
+        }
+        // Stage 1: fetchContext
+        const fetchStart = Date.now();
+        const ctx = await (0, fetchContext_1.fetchContext)(client, owner, repo, pullNumber);
+        core.info(`[fetchContext] files: ${ctx.files.length}, totalSize: ${ctx.totalSize} bytes, duration: ${Date.now() - fetchStart}ms`);
+        // Stage 2: planReview
+        const plan = (0, planReview_1.planReview)(ctx, inputs);
+        core.info(`[planReview] included: ${plan.includedFiles.length}, excluded: ${plan.excludedFiles.length}`);
+        if (plan.includedFiles.length === 0) {
+            core.info('No files to review after filtering');
+            return;
+        }
+        // Stage 3: runLLM
+        const llmStart = Date.now();
+        const filePatches = new Map();
+        for (const f of ctx.files) {
+            if (f.patch) {
+                filePatches.set(f.filename, f.patch);
+            }
+        }
+        const { result, overflowComments } = await (0, runLLM_1.runReviewLLM)(plan, inputs, filePatches);
+        core.info(`[runLLM] comments: ${result.comments.length}, confidence: ${result.confidence}/5, duration: ${Date.now() - llmStart}ms`);
+        // Stage 4: postReview
+        const postStart = Date.now();
+        const historyCount = 1;
+        const commitUrl = `https://github.com/${owner}/${repo}/commit/${ctx.headSha}`;
+        const commitTitle = ctx.headSha.slice(0, 7);
+        await (0, postReview_1.postReview)({
+            client,
+            owner,
+            repo,
+            pullNumber,
+            headSha: ctx.headSha,
+            commitTitle,
+            commitUrl,
+            result,
+            overflowComments,
+            historyCount,
+        });
+        core.info(`[postReview] duration: ${Date.now() - postStart}ms`);
+        core.info(`[total] duration: ${Date.now() - totalStart}ms`);
+    }
+    catch (error) {
+        core.info(`[total] duration: ${Date.now() - totalStart}ms (failed)`);
+        core.setFailed(error instanceof Error ? error.message : String(error));
+    }
+};
+main();
+
+
+/***/ }),
+
+/***/ 7303:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.fetchContext = void 0;
+const pulls_1 = __nccwpck_require__(4487);
+/**
+ * PR の基本情報と変更ファイル一覧を取得する。
+ */
+const fetchContext = async (client, owner, repo, pullNumber) => {
+    const { data: pr } = await (0, pulls_1.getPullRequest)(client, owner, repo, pullNumber);
+    const files = await (0, pulls_1.listFiles)(client, owner, repo, pullNumber);
+    const totalSize = files.reduce((sum, f) => sum + (f.patch?.length ?? 0), 0);
+    return {
+        headSha: pr.head.sha,
+        files: files,
+        totalSize,
+    };
+};
+exports.fetchContext = fetchContext;
+
+
+/***/ }),
+
+/***/ 7163:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.upsertSummaryComment = exports.incrementReviewCount = exports.parseReviewCount = exports.deleteOldInlineComments = void 0;
+const core = __importStar(__nccwpck_require__(7484));
+const pulls_1 = __nccwpck_require__(4487);
+const comments_1 = __nccwpck_require__(6645);
+const INLINE_MARKER = '<!-- ai-review-inline -->';
+const SUMMARY_START_MARKER = '<!-- ai-review-summary -->';
+const COUNT_REGEX = /<!-- ai-review-count=(\d+) -->/;
+/**
+ * 自 bot の既存 inline コメントのうち INLINE_MARKER を含むものを一括削除する。
+ * FR-016: 再実行時のハウスキーピング
+ */
+const deleteOldInlineComments = async (client, owner, repo, pullNumber) => {
+    const comments = await (0, pulls_1.listReviewComments)(client, owner, repo, pullNumber);
+    let deleted = 0;
+    for (const comment of comments) {
+        if (comment.body?.includes(INLINE_MARKER)) {
+            await (0, pulls_1.deleteReviewComment)(client, owner, repo, comment.id);
+            deleted++;
+        }
+    }
+    if (deleted > 0) {
+        core.info(`Deleted ${deleted} old inline comment(s)`);
+    }
+    return deleted;
+};
+exports.deleteOldInlineComments = deleteOldInlineComments;
+/**
+ * コメント本文から `<!-- ai-review-count=N -->` をパースしてカウントを返す。
+ * 見つからなければ 0 を返す。
+ */
+const parseReviewCount = (body) => {
+    const match = body.match(COUNT_REGEX);
+    return match ? parseInt(match[1], 10) : 0;
+};
+exports.parseReviewCount = parseReviewCount;
+/**
+ * 本文中の `<!-- ai-review-count=N -->` を `<!-- ai-review-count=N+1 -->` に置換する。
+ * 見つからなければそのまま返す。
+ */
+const incrementReviewCount = (body, currentCount) => {
+    return body.replace(COUNT_REGEX, `<!-- ai-review-count=${currentCount + 1} -->`);
+};
+exports.incrementReviewCount = incrementReviewCount;
+/**
+ * AI Review Summary コメントの upsert。
+ * - SUMMARY_START_MARKER 付きコメントが存在すれば:
+ *   - 既存コメントの count をパースし +1 した body で updateComment
+ *   - updateComment が 404/422 を返した場合は createComment にフォールバック (R-06 並列衝突対策)
+ * - 存在しなければ createComment で新規作成 (count=1)
+ */
+const upsertSummaryComment = async (client, owner, repo, pullNumber, body) => {
+    const comments = await (0, comments_1.listIssueComments)(client, owner, repo, pullNumber);
+    const existing = comments.find((c) => c.body?.includes(SUMMARY_START_MARKER));
+    if (existing) {
+        const currentCount = (0, exports.parseReviewCount)(existing.body ?? '');
+        const newCount = currentCount > 0 ? currentCount + 1 : 2;
+        const updatedBody = (0, exports.incrementReviewCount)(body, currentCount);
+        try {
+            await (0, comments_1.updateIssueComment)(client, owner, repo, existing.id, updatedBody);
+            core.info(`Updated existing AI Review Summary comment (id: ${existing.id}, count: ${newCount})`);
+            return { action: 'updated', commentId: existing.id, historyCount: newCount };
+        }
+        catch (error) {
+            const status = error?.status;
+            if (status === 404 || status === 422) {
+                // R-06: 並列実行衝突でコメントが消えた場合のフォールバック
+                core.warning(`updateComment failed with ${status} (possible parallel execution conflict), falling back to createComment`);
+                const { data: created } = await (0, comments_1.createIssueComment)(client, owner, repo, pullNumber, body);
+                core.info(`Created new AI Review Summary comment via fallback (id: ${created.id})`);
+                return { action: 'created', commentId: created.id, historyCount: 1 };
+            }
+            throw error;
+        }
+    }
+    const { data: created } = await (0, comments_1.createIssueComment)(client, owner, repo, pullNumber, body);
+    core.info(`Created new AI Review Summary comment (id: ${created.id})`);
+    return { action: 'created', commentId: created.id, historyCount: 1 };
+};
+exports.upsertSummaryComment = upsertSummaryComment;
+
+
+/***/ }),
+
+/***/ 7783:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.planReview = void 0;
+const core = __importStar(__nccwpck_require__(7484));
+/**
+ * max-files / per-file-diff-limit / diff-size-limit を適用し、
+ * LLM に投入するファイルを選定する。
+ */
+const planReview = (ctx, inputs) => {
+    const included = [];
+    const excluded = [];
+    let accumulatedSize = 0;
+    for (const file of ctx.files) {
+        // max-files 超過
+        if (included.length >= inputs.maxFiles) {
+            excluded.push(file.filename);
+            continue;
+        }
+        const patchSize = file.patch?.length ?? 0;
+        // per-file-diff-limit 超過
+        if (patchSize > inputs.perFileDiffLimit) {
+            core.info(`Excluding ${file.filename}: patch size ${patchSize} > per-file-diff-limit ${inputs.perFileDiffLimit}`);
+            excluded.push(file.filename);
+            continue;
+        }
+        // diff-size-limit (合計) 超過
+        if (accumulatedSize + patchSize > inputs.diffSizeLimit) {
+            core.info(`Excluding ${file.filename}: cumulative size would exceed diff-size-limit ${inputs.diffSizeLimit}`);
+            excluded.push(file.filename);
+            continue;
+        }
+        accumulatedSize += patchSize;
+        included.push({ filename: file.filename, patch: file.patch });
+    }
+    if (excluded.length > 0) {
+        core.info(`Excluded ${excluded.length} file(s) from LLM input`);
+    }
+    // diff をファイル単位で結合して user prompt を構築
+    const userPrompt = included
+        .map((f) => `## ${f.filename}\n\n\`\`\`diff\n${f.patch ?? ''}\n\`\`\``)
+        .join('\n\n');
+    return { includedFiles: included, excludedFiles: excluded, userPrompt };
+};
+exports.planReview = planReview;
+
+
+/***/ }),
+
+/***/ 282:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.postReview = void 0;
+const core = __importStar(__nccwpck_require__(7484));
+const pulls_1 = __nccwpck_require__(4487);
+const inlineComment_1 = __nccwpck_require__(5601);
+const reviewBodyMini_1 = __nccwpck_require__(3032);
+const issueSummary_1 = __nccwpck_require__(1422);
+const housekeeping_1 = __nccwpck_require__(7163);
+/**
+ * レビュー結果を GitHub に投稿する。
+ *
+ * 1. housekeeping: 旧 inline コメント削除
+ * 2. pulls.createReview (inline + body ミニサマリ)
+ * 3. housekeeping: AI Review Summary upsert
+ *
+ * FR-024: createReview が 422/403 → summary のみ投下のフォールバック
+ */
+const postReview = async (params) => {
+    const { client, owner, repo, pullNumber, headSha, commitTitle, commitUrl, result, overflowComments, historyCount, } = params;
+    // 1. 旧 inline 削除
+    await (0, housekeeping_1.deleteOldInlineComments)(client, owner, repo, pullNumber);
+    // 2. Review 作成
+    const reviewBody = (0, reviewBodyMini_1.renderReviewBodyMini)(result);
+    const inlineComments = result.comments.map((c) => ({
+        path: c.path,
+        line: c.line,
+        ...(c.startLine ? { start_line: c.startLine, start_side: 'RIGHT' } : {}),
+        side: 'RIGHT',
+        body: (0, inlineComment_1.renderInlineComment)(c),
+    }));
+    let reviewPosted = false;
+    try {
+        await (0, pulls_1.createReview)(client, {
+            owner,
+            repo,
+            pullNumber,
+            commitId: headSha,
+            body: reviewBody,
+            comments: inlineComments,
+        });
+        reviewPosted = true;
+    }
+    catch (error) {
+        const status = error?.status;
+        if (status === 422 || status === 403) {
+            // FR-024: inline 投稿失敗 → summary のみ投下
+            core.warning(`createReview failed with ${status}, falling back to summary-only`);
+        }
+        else {
+            throw error;
+        }
+    }
+    // 3. AI Review Summary upsert
+    const summaryBody = (0, issueSummary_1.renderIssueSummary)(result, historyCount, {
+        sha: headSha,
+        commitTitle,
+        commitUrl,
+    });
+    await (0, housekeeping_1.upsertSummaryComment)(client, owner, repo, pullNumber, summaryBody);
+    // overflow comments がある場合のログ
+    if (overflowComments.length > 0) {
+        core.info(`${overflowComments.length} comment(s) exceeded max-comments and were included in summary only`);
+    }
+};
+exports.postReview = postReview;
+
+
+/***/ }),
+
+/***/ 712:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.runReviewLLM = void 0;
 const core = __importStar(__nccwpck_require__(7484));
-const github_1 = __nccwpck_require__(3228);
 const fs_1 = __nccwpck_require__(9896);
 const path_1 = __importDefault(__nccwpck_require__(6928));
-const github_2 = __nccwpck_require__(9248);
 const vertexai_1 = __nccwpck_require__(8064);
-/**
- * メインの実行関数
- */
-const main = async () => {
-    try {
-        // action.ymlからの入力を取得
-        const githubToken = core.getInput('github-token', { required: true });
-        const gcpProjectId = core.getInput('gcp-project-id', { required: true });
-        const gcpLocation = core.getInput('gcp-location');
-        const gcpCredentials = JSON.parse(core.getInput('gcp-credentials', { required: true }));
-        const model = core.getInput('model');
-        let systemPromptPath = core.getInput('system-prompt-path');
-        if (!systemPromptPath) {
-            systemPromptPath = path_1.default.join(__dirname, '../prompts/system-prompt.md');
-        }
-        const diffSizeLimit = parseInt(core.getInput('diff-size-limit'), 10);
-        const timeout = parseInt(core.getInput('timeout'), 10);
-        // PR情報を取得
-        if (!github_1.context.payload.pull_request) {
-            throw new Error('This action can only be run on pull requests.');
-        }
-        const prNumber = github_1.context.payload.pull_request.number;
-        const { owner, repo: repoName } = github_1.context.repo;
-        console.log(`Fetching diff for PR #${prNumber} in ${owner}/${repoName}...`);
-        const diff = await (0, github_2.getPullRequestDiff)(owner, repoName, prNumber, githubToken);
-        console.log('Diff fetched successfully. Length:', diff.length);
-        if (diff.length > diffSizeLimit) {
-            console.log('Diff is too large, skipping AI review.');
-            const commentBody = '🤖 **Vertex AI Review**\n\nDiffが大きすぎるため、AIによるレビューをスキップしました。';
-            await (0, github_2.postCommentToGitHub)(owner, repoName, prNumber, githubToken, commentBody);
-            return;
-        }
-        console.log(`Using model: ${model}`);
-        console.log(`Using location: ${gcpLocation}`);
-        console.log('Requesting review from Vertex AI...');
-        const systemPrompt = (0, fs_1.readFileSync)(systemPromptPath, 'utf8');
-        const reviewComment = await (0, vertexai_1.getVertexAIReview)({
-            gcpProjectId,
-            gcpLocation,
-            gcpCredentials,
-            userPrompt: diff,
-            systemPrompt,
-            model,
-            timeout,
-        });
-        console.log('Review received from Vertex AI.');
-        const finalComment = `# 🤖 Vertex AI Review（${model}）\n\n${reviewComment}`;
-        await (0, github_2.postCommentToGitHub)(owner, repoName, prNumber, githubToken, finalComment);
-        console.log('Successfully posted review comment to GitHub.');
-    }
-    catch (error) {
-        console.error('An unexpected error occurred:', error);
-        process.exit(1);
-    }
+const position_1 = __nccwpck_require__(4196);
+const SEVERITY_ORDER = {
+    P0: 0,
+    P1: 1,
+    P2: 2,
+    P3: 3,
 };
-main();
+/**
+ * LLM を呼び出し、結果の comments を補正・フィルタする。
+ *
+ * 1. vertexai.runLLM を呼ぶ
+ * 2. snapCommentToValidLine で全 comments を補正
+ * 3. severity-threshold でフィルタ
+ * 4. max-comments 超過分を summary 末尾退避
+ */
+const runReviewLLM = async (plan, inputs, filePatches) => {
+    // システムプロンプトの読み込み
+    let systemPromptPath = inputs.systemPromptPath;
+    if (!systemPromptPath) {
+        systemPromptPath = path_1.default.join(__dirname, '../../prompts/pr-review/system.ja.md');
+    }
+    // FR-022: language=en 時のフォールバック
+    if (inputs.language === 'en') {
+        core.warning('English prompt is not yet implemented, falling back to Japanese (ja)');
+    }
+    const systemPrompt = (0, fs_1.readFileSync)(systemPromptPath, 'utf8')
+        .replace(/\{language\}/g, inputs.language === 'en' ? 'Japanese' : 'Japanese');
+    // LLM 呼び出し
+    const result = await (0, vertexai_1.runLLM)({
+        gcpProjectId: inputs.gcpProjectId,
+        gcpLocation: inputs.gcpLocation,
+        gcpCredentials: inputs.gcpCredentials,
+        userPrompt: plan.userPrompt,
+        systemPrompt,
+        model: inputs.model,
+        timeout: inputs.timeout,
+        maxOutputTokens: inputs.maxOutputTokens,
+    });
+    // 除外ファイルがある場合は summary に追記
+    if (plan.excludedFiles.length > 0) {
+        result.summary += `\n\n(${plan.excludedFiles.length} ファイルは diff サイズ超過のためレビュー対象外)`;
+    }
+    // snapCommentToValidLine で全 comments を補正
+    const snappedComments = [];
+    let snappedCount = 0;
+    let droppedCount = 0;
+    for (const comment of result.comments) {
+        const patch = filePatches.get(comment.path);
+        if (!patch) {
+            droppedCount++;
+            continue;
+        }
+        const lineMap = (0, position_1.parsePatchToLineMap)(patch);
+        const snapResult = (0, position_1.snapCommentToValidLine)(comment, lineMap);
+        if (snapResult === null) {
+            droppedCount++;
+            continue;
+        }
+        if (snapResult.snapped) {
+            snappedCount++;
+        }
+        snappedComments.push(snapResult.comment);
+    }
+    if (snappedCount > 0) {
+        core.info(`Snapped ${snappedCount} comment(s) to nearest valid line`);
+    }
+    if (droppedCount > 0) {
+        core.info(`Dropped ${droppedCount} comment(s) outside valid diff range`);
+    }
+    // severity-threshold でフィルタ
+    const thresholdOrder = SEVERITY_ORDER[inputs.severityThreshold];
+    const filtered = snappedComments.filter((c) => SEVERITY_ORDER[c.severity] <= thresholdOrder);
+    // max-comments 超過分は優先度順でソートし退避
+    filtered.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+    const posted = filtered.slice(0, inputs.maxComments);
+    const overflow = filtered.slice(inputs.maxComments);
+    result.comments = posted;
+    return { result, overflowComments: overflow };
+};
+exports.runReviewLLM = runReviewLLM;
+
+
+/***/ }),
+
+/***/ 5601:
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.renderInlineComment = void 0;
+const promptToFixWithAi_1 = __nccwpck_require__(5139);
+const SEVERITY_EMOJI = {
+    P0: '\u{1F534}',
+    P1: '\u{1F7E0}',
+    P2: '\u{1F7E1}',
+    P3: '\u{1F7E2}',
+};
+const MARKER = '<!-- ai-review-inline -->';
+/**
+ * ReviewComment を inline コメント用 Markdown にレンダリングする純粋関数。
+ * テンプレは requirements.md §4.3 を正とする。
+ *
+ * 5 パーツ構成:
+ * 1. 優先度絵文字 + P{0-3} ラベル + 太字見出し
+ * 2. 本文（現象→根拠→影響→推奨）
+ * 3. suggestion ブロック（ある場合のみ）
+ * 4. Prompt To Fix With AI details セクション
+ * 5. 末尾マーカー <!-- ai-review-inline -->
+ */
+const renderInlineComment = (c) => {
+    const emoji = SEVERITY_EMOJI[c.severity] ?? '';
+    const lines = [];
+    // 1. 見出し
+    lines.push(`${emoji} **${c.severity}: ${c.title}**`);
+    lines.push('');
+    // 2. 本文
+    lines.push(c.body);
+    lines.push('');
+    // 3. suggestion（ある場合のみ）
+    if (c.suggestion) {
+        lines.push('```suggestion');
+        lines.push(c.suggestion);
+        lines.push('```');
+        lines.push('');
+    }
+    // 4. Prompt To Fix With AI
+    lines.push((0, promptToFixWithAi_1.renderPromptToFixWithAI)(c));
+    lines.push('');
+    // 5. 末尾マーカー
+    lines.push(MARKER);
+    return lines.join('\n');
+};
+exports.renderInlineComment = renderInlineComment;
+
+
+/***/ }),
+
+/***/ 1422:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.renderIssueSummary = void 0;
+/**
+ * AI Review Summary コメント (Issue コメント) を生成する純粋関数。
+ * テンプレは requirements.md §4.4 のフルテンプレを正とする。
+ */
+const renderIssueSummary = (r, historyCount, head) => {
+    const lines = [];
+    // 開始マーカー
+    lines.push('<!-- ai-review-summary -->');
+    lines.push(`<!-- ai-review-count=${historyCount} -->`);
+    lines.push('');
+    // Summary
+    lines.push('<h3>AI Review Summary</h3>');
+    lines.push('');
+    lines.push(r.summary);
+    lines.push('');
+    // Confidence Score
+    lines.push(`<h3>Confidence Score: ${r.confidence}/5</h3>`);
+    lines.push('');
+    // Important Files Changed
+    if (r.importantFiles.length > 0) {
+        lines.push('<h3>Important Files Changed</h3>');
+        lines.push('');
+        lines.push('| Filename | Overview |');
+        lines.push('|----------|----------|');
+        for (const f of r.importantFiles) {
+            lines.push(`| ${f.path} | ${f.overview} |`);
+        }
+        lines.push('');
+    }
+    // Mermaid (optional)
+    if (r.mermaid) {
+        lines.push(`<h3>${r.mermaid.kind === 'sequenceDiagram' ? 'Sequence Diagram' : 'Flowchart'}</h3>`);
+        lines.push('');
+        lines.push('```mermaid');
+        lines.push(r.mermaid.source);
+        lines.push('```');
+        lines.push('');
+    }
+    // Prompt To Fix All With AI
+    if (r.comments.length > 0) {
+        lines.push('<details><summary>Prompt To Fix All With AI</summary>');
+        lines.push('');
+        lines.push('`````markdown');
+        const prompts = r.comments.map((c) => {
+            const range = c.startLine ? `${c.startLine}-${c.line}` : String(c.line);
+            const suggestionBlock = c.suggestion
+                ? `\n\n\`\`\`suggestion\n${c.suggestion}\n\`\`\``
+                : '';
+            return [
+                `Path: ${c.path}`,
+                `Line: ${range}`,
+                '',
+                `**${c.title}**`,
+                '',
+                c.body,
+                suggestionBlock,
+            ].join('\n');
+        });
+        lines.push(prompts.join('\n\n---\n\n'));
+        lines.push('');
+        lines.push('How can I resolve this? If you propose a fix, please make it concise.');
+        lines.push('`````');
+        lines.push('');
+        lines.push('</details>');
+        lines.push('');
+    }
+    // Footer
+    const tokensSuffix = r.stats.tokensUsed != null ? ` | tokens: ${r.stats.tokensUsed}` : '';
+    lines.push(`<sub>Reviews (${historyCount}): Last reviewed commit: ["${head.commitTitle}"](${head.commitUrl})${tokensSuffix}</sub>`);
+    lines.push('');
+    if (r.comments.length > 0) {
+        lines.push(`> AI Review also left **${r.comments.length} inline comments** on this PR.`);
+        lines.push('');
+    }
+    // 終了マーカー
+    lines.push('<!-- /ai-review-summary -->');
+    return lines.join('\n');
+};
+exports.renderIssueSummary = renderIssueSummary;
+
+
+/***/ }),
+
+/***/ 5139:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.renderPromptToFixWithAI = void 0;
+/**
+ * 各 inline コメントに紐付く Prompt To Fix With AI details セクションを
+ * 機械的に生成する純粋関数 (FR-009)。LLM には依頼しない。
+ * テンプレは requirements.md §4.3 を正とする。
+ */
+const renderPromptToFixWithAI = (c) => {
+    const range = c.startLine ? `${c.startLine}-${c.line}` : String(c.line);
+    const suggestionBlock = c.suggestion
+        ? `\n\n\`\`\`suggestion\n${c.suggestion}\n\`\`\``
+        : '';
+    return [
+        '<details><summary>Prompt To Fix With AI</summary>',
+        '',
+        '`````markdown',
+        'This is a comment left during a code review.',
+        `Path: ${c.path}`,
+        `Line: ${range}`,
+        '',
+        'Comment:',
+        `**${c.title}**`,
+        '',
+        c.body,
+        suggestionBlock,
+        '',
+        'How can I resolve this? If you propose a fix, please make it concise.',
+        '`````',
+        '',
+        '</details>',
+    ].join('\n');
+};
+exports.renderPromptToFixWithAI = renderPromptToFixWithAI;
+
+
+/***/ }),
+
+/***/ 3032:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.renderReviewBodyMini = void 0;
+/**
+ * pulls.createReview の body に埋め込むミニサマリを生成する純粋関数。
+ * テンプレは requirements.md §4.4「Review body ミニサマリ」を正とする。
+ */
+const renderReviewBodyMini = (r) => {
+    const counts = countBySeverity(r.comments);
+    return [
+        `\u{1F916} **AI Review** \u2014 Confidence ${r.confidence}/5 \u2014 \u{1F534}${counts.P0} \u{1F7E0}${counts.P1} \u{1F7E1}${counts.P2} \u{1F7E2}${counts.P3}`,
+        '',
+        '\u8A73\u7D30\u306F\u4E0B\u90E8\u306E AI Review Summary \u30B3\u30E1\u30F3\u30C8\u3092\u53C2\u7167\u3002',
+    ].join('\n');
+};
+exports.renderReviewBodyMini = renderReviewBodyMini;
+const countBySeverity = (comments) => {
+    const counts = { P0: 0, P1: 0, P2: 0, P3: 0 };
+    for (const c of comments) {
+        counts[c.severity]++;
+    }
+    return counts;
+};
 
 
 /***/ }),
@@ -50361,13 +51248,13 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getClaudeReview = void 0;
 const vertex_sdk_1 = __nccwpck_require__(5056);
 const google_auth_library_1 = __nccwpck_require__(492);
+const schema_1 = __nccwpck_require__(6517);
 /**
- * Claudeを使用してPRのレビューを取得します。
- * @param params - レビュー取得に必要なパラメータ
- * @returns Claudeによるレビューコメント
+ * Claude を使用してPRレビューを取得する。
+ * tools + tool_choice で構造化 JSON 出力を強制する。
  */
 const getClaudeReview = async (params) => {
-    const { gcpProjectId, gcpLocation = 'us-east5', gcpCredentials, userPrompt, systemPrompt, model, timeout, } = params;
+    const { gcpProjectId, gcpLocation = 'us-east5', gcpCredentials, userPrompt, systemPrompt, model, timeout, maxOutputTokens, } = params;
     const googleAuth = new google_auth_library_1.GoogleAuth({
         credentials: gcpCredentials,
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
@@ -50378,26 +51265,31 @@ const getClaudeReview = async (params) => {
         googleAuth,
         timeout,
     });
-    try {
-        const response = await client.messages.create({
-            model,
-            system: systemPrompt,
-            messages: [{ role: 'user', content: userPrompt }],
-            max_tokens: 4096,
-        });
-        if (response.content.length > 0 &&
-            response.content[0].type === 'text' &&
-            response.content[0].text) {
-            return response.content[0].text;
-        }
-        else {
-            return '';
-        }
+    const response = await client.messages.create({
+        model,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+        max_tokens: maxOutputTokens,
+        tools: [
+            {
+                name: 'submit_review',
+                description: 'Submit the structured PR review result',
+                input_schema: (0, schema_1.buildClaudeInputSchema)(),
+            },
+        ],
+        tool_choice: { type: 'tool', name: 'submit_review' },
+    });
+    const toolUseBlock = response.content.find((c) => c.type === 'tool_use');
+    if (!toolUseBlock) {
+        throw new Error('Claude did not return a tool_use block');
     }
-    catch (error) {
-        console.error('Claude API Error:', error);
-        throw error;
+    const result = toolUseBlock.input;
+    // T3.3: tokensUsed を usage から取得
+    const usage = response.usage;
+    if (usage) {
+        result.stats.tokensUsed = usage.input_tokens + usage.output_tokens;
     }
+    return result;
 };
 exports.getClaudeReview = getClaudeReview;
 
@@ -50405,20 +51297,54 @@ exports.getClaudeReview = getClaudeReview;
 /***/ }),
 
 /***/ 413:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getGeminiReview = void 0;
+const core = __importStar(__nccwpck_require__(7484));
 const vertexai_1 = __nccwpck_require__(7883);
+const schema_1 = __nccwpck_require__(6517);
 /**
- * Vertex AIを使用してPRのレビューを取得します。
- * @param params - レビュー取得に必要なパラメータ
- * @returns Vertex AIによるレビューコメント
+ * Gemini を使用してPRレビューを取得する。
+ * responseMimeType + responseSchema で構造化 JSON 出力を強制する。
  */
 const getGeminiReview = async (params) => {
-    const { gcpProjectId, gcpLocation = 'us-east5', gcpCredentials, userPrompt, systemPrompt, model, timeout, } = params;
+    const { gcpProjectId, gcpLocation = 'us-east5', gcpCredentials, userPrompt, systemPrompt, model, timeout, maxOutputTokens, } = params;
     const vertexAI = new vertexai_1.VertexAI({
         project: gcpProjectId,
         location: gcpLocation,
@@ -50426,23 +51352,39 @@ const getGeminiReview = async (params) => {
             credentials: gcpCredentials,
         },
     });
+    const generativeModel = vertexAI.getGenerativeModel({
+        model,
+        systemInstruction: systemPrompt,
+        generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: (0, schema_1.buildGeminiResponseSchema)(),
+            maxOutputTokens,
+        },
+    });
+    const request = {
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        timeout,
+    };
+    const resp = await generativeModel.generateContent(request);
+    const response = resp.response;
+    const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+        throw new Error('Gemini returned empty response');
+    }
+    let result;
     try {
-        const generativeModel = vertexAI.getGenerativeModel({
-            model: model,
-            systemInstruction: systemPrompt,
-        });
-        const request = {
-            contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-            timeout,
-        };
-        const resp = await generativeModel.generateContent(request);
-        const response = resp.response;
-        return (response.candidates?.[0]?.content?.parts?.[0]?.text ?? 'No feedback.');
+        result = JSON.parse(text);
     }
-    catch (error) {
-        console.error('Gemini API Error:', error);
-        throw error;
+    catch (e) {
+        core.error(`Failed to parse Gemini JSON response: ${text.slice(0, 500)}`);
+        throw new Error(`Gemini JSON parse failed: ${e instanceof Error ? e.message : String(e)}`);
     }
+    // T3.3: tokensUsed を usageMetadata から取得
+    const totalTokens = response.usageMetadata?.totalTokenCount;
+    if (totalTokens != null) {
+        result.stats.tokensUsed = totalTokens;
+    }
+    return result;
 };
 exports.getGeminiReview = getGeminiReview;
 
@@ -50455,22 +51397,138 @@ exports.getGeminiReview = getGeminiReview;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getVertexAIReview = void 0;
+exports.runLLM = void 0;
 const claude_1 = __nccwpck_require__(4024);
 const gemini_1 = __nccwpck_require__(413);
 /**
- * Vertex AIを使用してPRのレビューを取得します。
- * @param params - レビュー取得に必要なパラメータ
- * @returns Vertex AIによるレビューコメント
+ * Vertex AI LLM を呼び出し ReviewResult を返す。
+ * model 名に 'claude' が含まれるかで dispatch する。
  */
-const getVertexAIReview = async (params) => {
+const runLLM = async (params) => {
     const { model } = params;
     if (model.includes('claude')) {
         return (0, claude_1.getClaudeReview)(params);
     }
     return (0, gemini_1.getGeminiReview)(params);
 };
-exports.getVertexAIReview = getVertexAIReview;
+exports.runLLM = runLLM;
+
+
+/***/ }),
+
+/***/ 6517:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/**
+ * ReviewResult 型から Gemini responseSchema / Claude input_schema を生成する純粋関数。
+ * requirements.md §7.3 のスキーマ定義を正とする。
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.buildClaudeInputSchema = exports.buildGeminiResponseSchema = void 0;
+const reviewCommentSchema = {
+    type: 'object',
+    properties: {
+        path: { type: 'string' },
+        line: { type: 'integer' },
+        startLine: { type: 'integer' },
+        side: { type: 'string', enum: ['RIGHT'] },
+        severity: { type: 'string', enum: ['P0', 'P1', 'P2', 'P3'] },
+        category: {
+            type: 'string',
+            enum: ['bug', 'security', 'perf', 'style', 'test', 'docs', 'a11y'],
+        },
+        title: { type: 'string' },
+        body: { type: 'string' },
+        suggestion: { type: 'string' },
+    },
+    required: ['path', 'line', 'side', 'severity', 'category', 'title', 'body'],
+};
+const importantFileSchema = {
+    type: 'object',
+    properties: {
+        path: { type: 'string' },
+        overview: { type: 'string' },
+    },
+    required: ['path', 'overview'],
+};
+const mermaidSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: ['sequenceDiagram', 'flowchart'],
+        },
+        source: { type: 'string' },
+    },
+    required: ['kind', 'source'],
+};
+const statsSchema = {
+    type: 'object',
+    properties: {
+        filesReviewed: { type: 'integer' },
+        tokensUsed: { type: 'integer' },
+    },
+    required: ['filesReviewed'],
+};
+/**
+ * Gemini responseSchema 用（OpenAPI subset 形式）
+ */
+const buildGeminiResponseSchema = () => ({
+    type: 'object',
+    properties: {
+        summary: { type: 'string' },
+        confidence: { type: 'integer', minimum: 1, maximum: 5 },
+        importantFiles: {
+            type: 'array',
+            items: importantFileSchema,
+        },
+        mermaid: mermaidSchema,
+        comments: {
+            type: 'array',
+            items: reviewCommentSchema,
+        },
+        stats: statsSchema,
+    },
+    required: ['summary', 'confidence', 'comments', 'stats'],
+});
+exports.buildGeminiResponseSchema = buildGeminiResponseSchema;
+/**
+ * Claude input_schema 用（JSON Schema 形式）
+ */
+const buildClaudeInputSchema = () => ({
+    type: 'object',
+    properties: {
+        summary: { type: 'string', description: 'PR 総括（2〜4 文 + 残課題）' },
+        confidence: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 5,
+            description: 'Confidence Score (1-5)',
+        },
+        importantFiles: {
+            type: 'array',
+            items: importantFileSchema,
+            description: '変更ファイルの要約リスト',
+        },
+        mermaid: {
+            ...mermaidSchema,
+            description: 'Mermaid 図（任意）',
+        },
+        comments: {
+            type: 'array',
+            items: reviewCommentSchema,
+            description: 'レビューコメント配列',
+        },
+        stats: {
+            ...statsSchema,
+            description: 'レビュー統計',
+        },
+    },
+    required: ['summary', 'confidence', 'comments', 'stats'],
+});
+exports.buildClaudeInputSchema = buildClaudeInputSchema;
 
 
 /***/ }),

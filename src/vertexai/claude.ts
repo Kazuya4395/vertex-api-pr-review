@@ -1,15 +1,16 @@
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import { GoogleAuth } from 'google-auth-library';
-import { GetVertexAIReviewParams } from '.';
+import { ReviewResult } from '../types/review';
+import { buildClaudeInputSchema } from './schema';
+import { RunLLMParams } from './index';
 
 /**
- * Claudeを使用してPRのレビューを取得します。
- * @param params - レビュー取得に必要なパラメータ
- * @returns Claudeによるレビューコメント
+ * Claude を使用してPRレビューを取得する。
+ * tools + tool_choice で構造化 JSON 出力を強制する。
  */
 export const getClaudeReview = async (
-  params: GetVertexAIReviewParams,
-): Promise<string> => {
+  params: RunLLMParams,
+): Promise<ReviewResult> => {
   const {
     gcpProjectId,
     gcpLocation = 'us-east5',
@@ -18,6 +19,7 @@ export const getClaudeReview = async (
     systemPrompt,
     model,
     timeout,
+    maxOutputTokens,
   } = params;
 
   const googleAuth = new GoogleAuth({
@@ -32,25 +34,36 @@ export const getClaudeReview = async (
     timeout,
   });
 
-  try {
-    const response = await client.messages.create({
-      model,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-      max_tokens: 4096,
-    });
+  const response = await client.messages.create({
+    model,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
+    max_tokens: maxOutputTokens,
+    tools: [
+      {
+        name: 'submit_review',
+        description: 'Submit the structured PR review result',
+        input_schema: buildClaudeInputSchema() as any,
+      },
+    ],
+    tool_choice: { type: 'tool' as const, name: 'submit_review' },
+  });
 
-    if (
-      response.content.length > 0 &&
-      response.content[0].type === 'text' &&
-      response.content[0].text
-    ) {
-      return response.content[0].text;
-    } else {
-      return '';
-    }
-  } catch (error) {
-    console.error('Claude API Error:', error);
-    throw error;
+  const toolUseBlock = response.content.find(
+    (c): c is Extract<typeof c, { type: 'tool_use' }> => c.type === 'tool_use',
+  );
+
+  if (!toolUseBlock) {
+    throw new Error('Claude did not return a tool_use block');
   }
+
+  const result = toolUseBlock.input as ReviewResult;
+
+  // T3.3: tokensUsed を usage から取得
+  const usage = response.usage;
+  if (usage) {
+    result.stats.tokensUsed = usage.input_tokens + usage.output_tokens;
+  }
+
+  return result;
 };

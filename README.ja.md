@@ -1,80 +1,118 @@
-# AIコードレビューアクション
+# Vertex AI Code Review Action
 
-このGitHub Actionは、GoogleのVertex AI (Gemini) を利用して、プルリクエストを自動的にレビューします。潜在的なバグ、可読性、保守性に関するフィードバックを即座に提供することで、コード品質の向上を支援します。
+Google Vertex AI (Gemini / Claude) を使用した**構造化 PR レビュー** GitHub Action です。重要度付きインラインコメント、committable suggestion、AI Review Summary を投稿します。
 
-## 仕組み
+[English](./README.md)
 
-プルリクエストがオープンまたは更新されると、このアクションは以下の処理を実行します：
+## 機能
 
-1.  プルリクエストの差分（diff）を取得します。
-2.  設定可能なプロンプトと共に、差分をVertex AI APIに送信します。
-3.  AIが生成したレビューを、プルリクエストのコメントとして投稿します。
+- 重要度レベル (P0-P3) 付きインラインレビューコメントと committable suggestion
+- Confidence Score、重要ファイル表、Mermaid 図を含む AI Review Summary
+- Vertex AI 経由で **Gemini** と **Claude** の両モデルに対応
+- 冪等性: 再実行時に旧コメントを削除し Summary を更新
+- 重要度しきい値、ファイル数制限、diff サイズ制限の設定が可能
 
 ## 使い方
 
-1.  **ワークフローファイルの作成**: リポジトリにワークフローファイル（例: `.github/workflows/review.yml`）を作成します。
+```yaml
+name: AI Code Review
 
-    ```yaml
-    name: AI Code Review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
 
-    on:
-      pull_request:
-        types: [opened, synchronize]
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
-    jobs:
-      review:
-        runs-on: ubuntu-latest
-        permissions:
-          contents: read
-          pull-requests: write
-        steps:
-          - uses: actions/checkout@v4
-          - name: AIコードレビューを実行
-            uses: Kazuya4395/vertex-api-pr-review@v1
-            with:
-              github-token: ${{ secrets.GITHUB_TOKEN }}
-              gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
-              gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
-    ```
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run AI Code Review
+        uses: Kazuya4395/vertex-api-pr-review@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
+          gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
+```
 
-2.  **シークレットの設定**: リポジトリの `Settings` > `Secrets and variables` > `Actions` で、以下のシークレットを設定します。
-    - `GCP_PROJECT_ID`: あなたのGoogle CloudプロジェクトID。
-    - `GCP_CREDENTIALS`: GCPサービスアカウントキーのJSONコンテンツ。
+### 必須シークレット
 
-## アクションの入力
+| シークレット | 説明 |
+|-------------|------|
+| `GCP_PROJECT_ID` | Google Cloud プロジェクト ID |
+| `GCP_CREDENTIALS` | GCP サービスアカウントキーの JSON |
 
-ワークフローファイルの `with` キーワードを使って、アクションの挙動をカスタマイズできます。
+## 入力パラメータ
 
-| 入力                 | 説明                                                                                                                                                                                                                    | デフォルト値       |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| `github-token`       | `GITHUB_TOKEN` シークレット。                                                                                                                                                                                           | N/A                |
-| `gcp-project-id`     | あなたのGoogle CloudプロジェクトID。                                                                                                                                                                                    | N/A                |
-| `gcp-location`       | プロジェクトのGoogle Cloudリージョン。注意: Claudeモデルは `us-east5` のような特定のリージョンでのみ利用可能です。                                                                                                      | `us-east5`         |
-| `gcp-credentials`    | GCPサービスアカウントキーのJSONコンテンツ。                                                                                                                                                                             | N/A                |
-| `model`              | レビューに使用するVertex AIモデル。（例: `gemini-2.5-flash`, `claude-sonnet-4-5@20250929`）。利用可能なモデルは[こちら](https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions)を参照してください。 | `gemini-2.5-flash` |
-| `system-prompt-path` | カスタムシステムプロンプトファイルのパス。指定しない場合はデフォルトのプロンプトが使用されます。                                                                                                                        | N/A                |
-| `diff-size-limit`    | レビュー対象とする差分の最大サイズ（バイト）。これを超えるとスキップされます。                                                                                                                                          | `100000`           |
-| `timeout`            | Vertex AI API呼び出しのタイムアウト（ミリ秒）。                                                                                                                                                                         | `120000`           |
+| 入力 | 説明 | デフォルト |
+|------|------|-----------|
+| `github-token` | GITHUB_TOKEN シークレット | (必須) |
+| `gcp-project-id` | Google Cloud プロジェクト ID | (必須) |
+| `gcp-location` | Google Cloud リージョン。Claude モデルは `us-east5` 等の特定リージョンが必要 | `us-east5` |
+| `gcp-credentials` | GCP サービスアカウントキーの JSON | (必須) |
+| `model` | Vertex AI モデル名 (例: `gemini-2.5-pro`, `claude-sonnet-4-5@20250929`) | `gemini-2.5-pro` |
+| `system-prompt-path` | カスタムプロンプトのパス。出力は `ReviewResult` JSON 必須 | `prompts/pr-review/system.ja.md` |
+| `diff-size-limit` | diff 合計サイズの上限 (bytes) | `100000` |
+| `timeout` | Vertex AI API のタイムアウト (ms) | `120000` |
+| `max-files` | レビュー対象の最大ファイル数 | `50` |
+| `max-comments` | インラインコメントの最大投稿数。超過分は Summary に退避 | `20` |
+| `per-file-diff-limit` | ファイルごとの diff サイズ上限 (bytes) | `30000` |
+| `severity-threshold` | インライン投稿する最小重要度 (`P0`, `P1`, `P2`, `P3`) | `P3` |
+| `language` | レビュー言語 (`ja` / `en`)。現在 `ja` のみ対応。`en` は `ja` にフォールバック | `ja` |
+| `review-drafts` | Draft PR をレビュー対象にするか | `false` |
+| `max-output-tokens` | LLM の最大出力トークン数。JSON が途切れる場合に増加 | `8192` |
 
-### カスタム入力の例:
+### 全入力パラメータの設定例
 
 ```yaml
-- name: AIコードレビューを実行
-  uses: Kazuya4395/vertex-api-pr-review@v1
+- name: Run AI Code Review
+  uses: Kazuya4395/vertex-api-pr-review@v2
   with:
     github-token: ${{ secrets.GITHUB_TOKEN }}
     gcp-project-id: ${{ secrets.GCP_PROJECT_ID }}
     gcp-credentials: ${{ secrets.GCP_CREDENTIALS }}
-    gcp-location: 'us-east5' # オプション: デフォルトは 'us-east5'。
-    model: 'claude-sonnet-4-5@20250929'
-    system-prompt-path: '.github/prompts/my-custom-prompt.md'
-    diff-size-limit: '200000'
-    timeout: '180000'
+    model: 'gemini-2.5-pro'
+    max-files: '30'
+    max-comments: '15'
+    per-file-diff-limit: '20000'
+    severity-threshold: 'P2'
+    review-drafts: 'true'
+    max-output-tokens: '16384'
+```
+
+## 挙動
+
+- **レビュー形式**: `pulls.createReview` でインラインコメントを投稿し、別途 AI Review Summary を Issue コメントとして投下
+- **PR 本文**: 一切変更しない (DL-02)
+- **冪等性**: 再実行時は旧インラインコメント (`<!-- ai-review-inline -->` マーカー付き) を削除し、Summary コメント (`<!-- ai-review-summary -->` マーカー付き) を upsert
+- **レビュー回数**: Summary 内の `<!-- ai-review-count=N -->` 隠しマーカーでカウントを追跡
+- **重要度フィルタ**: `severity-threshold` 未満のコメントはインライン投稿から除外
+- **超過コメント**: `max-comments` を超えたコメントは Summary にのみ含まれる
+- **Draft PR**: デフォルトでスキップ。`review-drafts: true` で有効化
+- **createReview 失敗時**: 422/403 の場合は Summary のみ投下にフォールバック (DL-07)
+- **言語**: 現在は日本語 (`ja`) のみ対応。`en` 指定時は警告ログを出力し `ja` にフォールバック (DL-04)
+- **カスタムプロンプト**: 出力は `ReviewResult` JSON スキーマに準拠する必要あり。型定義は `src/types/review.ts` を参照
+
+## 並列実行制御
+
+同一 PR への並列実行によるコメント衝突を防ぐため、ワークフローに `concurrency` を設定してください:
+
+```yaml
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 ```
 
 ## 開発
 
-1.  リポジトリをクローンします。
-2.  依存関係をインストールします: `npm install`
-3.  テストを実行します: `npm test`
-4.  プロジェクトをビルドします: `npm run build`
+```bash
+npm install
+npm test
+npm run build
+```

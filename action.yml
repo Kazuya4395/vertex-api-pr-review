@@ -1,5 +1,5 @@
 name: 'Vertex AI Code Review'
-description: 'Automatically review pull requests using Google Vertex AI (Gemini).'
+description: 'Automatically review pull requests using Google Vertex AI (Gemini / Claude) with structured inline comments and AI Review Summary.'
 author: 'Kazuya4395'
 
 inputs:
@@ -17,20 +17,49 @@ inputs:
     description: 'The JSON content of your GCP service account key.'
     required: true
   model:
-    description: 'The Vertex AI model to use for the review. e.g. `gemini-2.5-flash`, `claude-sonnet-4-5@20250929`.'
+    description: 'The Vertex AI model to use for the review. e.g. `gemini-2.5-pro`, `claude-sonnet-4-5@20250929`.'
     required: false
-    default: 'gemini-2.5-flash'
+    default: 'gemini-2.5-pro'
   system-prompt-path:
-    description: 'The path to a custom system prompt file. If not provided, a default prompt will be used.'
+    description: 'The path to a custom system prompt file. Output must conform to ReviewResult JSON schema.'
     required: false
+    default: 'prompts/pr-review/system.ja.md'
   diff-size-limit:
-    description: 'The maximum diff size (in bytes) to review. Larger diffs will be skipped.'
+    description: 'The maximum total diff size (in bytes) to review. Files exceeding this are excluded.'
     required: false
     default: '100000'
   timeout:
     description: 'The timeout (in milliseconds) for the Vertex AI API call.'
     required: false
     default: '120000'
+  max-files:
+    description: 'Maximum number of files to send to LLM for review.'
+    required: false
+    default: '50'
+  max-comments:
+    description: 'Maximum number of inline comments to post. Excess comments are included in summary only.'
+    required: false
+    default: '20'
+  per-file-diff-limit:
+    description: 'Maximum diff size (in bytes) per file. Files exceeding this are excluded.'
+    required: false
+    default: '30000'
+  severity-threshold:
+    description: 'Minimum severity to post as inline comment. One of: P0, P1, P2, P3.'
+    required: false
+    default: 'P3'
+  language:
+    description: 'Review language (ja or en). Only ja is supported in initial release; en falls back to ja with a warning.'
+    required: false
+    default: 'ja'
+  review-drafts:
+    description: 'Whether to review draft pull requests.'
+    required: false
+    default: 'false'
+  max-output-tokens:
+    description: 'Maximum output tokens for LLM response. Increase if JSON output is truncated.'
+    required: false
+    default: '8192'
 
 runs:
   using: 'node20'
