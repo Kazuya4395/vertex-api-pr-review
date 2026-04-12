@@ -8,7 +8,7 @@
 | Plan | [./2-plan.md](./2-plan.md) |
 | Version | 1.0 |
 | Date | 2026-04-11 |
-| Status | In Progress |
+| Status | Complete |
 
 ---
 
@@ -21,6 +21,8 @@
 - **2026-04-12**: T2.1〜T2.14 完了 — Phase 2 全完。73 tests passed, coverage 98.65% (Stmts) / 90.66% (Branch)。dist/index.js = 2417KB (< 6MB)
 - **2026-04-12**: T3.1〜T3.5 完了 — housekeeping upsert 拡張 / 冪等性テスト / tokensUsed / 観測性ログ / README 全面書き換え
 - **2026-04-12**: T3.7 完了 — 83 tests passed, dist/index.js = 2420KB (< 6MB), tsc 通過
+- **2026-04-12**: T3.8 完了 — v2.0.0 タグ + GitHub Release 作成, Issue #3 クローズ
+- **2026-04-12**: T3.6 保留 — GCP シークレット未設定のため E2E 冪等性検証は後日実施
 
 ---
 
