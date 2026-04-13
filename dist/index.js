@@ -50480,7 +50480,7 @@ const readInputs = () => ({
     severityThreshold: (core.getInput('severity-threshold') || 'P3'),
     language: (core.getInput('language') || 'ja'),
     reviewDrafts: core.getBooleanInput('review-drafts', { required: false }) || false,
-    maxOutputTokens: parseInt(core.getInput('max-output-tokens'), 10) || 80000,
+    maxOutputTokens: parseInt(core.getInput('max-output-tokens'), 10) || 65536,
 });
 const main = async () => {
     const totalStart = Date.now();

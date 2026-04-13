@@ -25,7 +25,7 @@ const readInputs = (): ActionInputs => ({
   severityThreshold: (core.getInput('severity-threshold') || 'P3') as ActionInputs['severityThreshold'],
   language: (core.getInput('language') || 'ja') as ActionInputs['language'],
   reviewDrafts: core.getBooleanInput('review-drafts', { required: false }) || false,
-  maxOutputTokens: parseInt(core.getInput('max-output-tokens'), 10) || 80000,
+  maxOutputTokens: parseInt(core.getInput('max-output-tokens'), 10) || 65536,
 });
 
 const main = async () => {

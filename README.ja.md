@@ -66,7 +66,7 @@ jobs:
 | `severity-threshold` | インライン投稿する最小重要度 (`P0`, `P1`, `P2`, `P3`) | `P3` |
 | `language` | レビュー言語 (`ja` / `en`)。現在 `ja` のみ対応。`en` は `ja` にフォールバック | `ja` |
 | `review-drafts` | Draft PR をレビュー対象にするか | `false` |
-| `max-output-tokens` | LLM の最大出力トークン数。JSON が途切れる場合に増加 | `80000` |
+| `max-output-tokens` | LLM の最大出力トークン数。JSON が途切れる場合に増加 | `65536` |
 
 ### 全入力パラメータの設定例
 

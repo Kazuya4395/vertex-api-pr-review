@@ -59,7 +59,7 @@ inputs:
   max-output-tokens:
     description: 'Maximum output tokens for LLM response. Increase if JSON output is truncated.'
     required: false
-    default: '80000'
+    default: '65536'
 
 runs:
   using: 'node20'
