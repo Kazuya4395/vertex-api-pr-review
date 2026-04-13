@@ -66,7 +66,7 @@ jobs:
 | `severity-threshold` | Minimum severity to post inline (`P0`, `P1`, `P2`, `P3`) | `P3` |
 | `language` | Review language (`ja` or `en`). Only `ja` is supported; `en` falls back to `ja` | `ja` |
 | `review-drafts` | Whether to review draft PRs | `false` |
-| `max-output-tokens` | Maximum output tokens for LLM. Increase if JSON is truncated | `8192` |
+| `max-output-tokens` | Maximum output tokens for LLM. Increase if JSON is truncated | `80000` |
 
 ### Example with All Inputs
 
