@@ -21,9 +21,9 @@ inputs:
     required: false
     default: 'gemini-2.5-pro'
   system-prompt-path:
-    description: 'The path to a custom system prompt file. Output must conform to ReviewResult JSON schema.'
+    description: 'The path to a custom system prompt file relative to your repository root. Output must conform to ReviewResult JSON schema. If empty, uses the built-in Japanese prompt.'
     required: false
-    default: 'prompts/pr-review/system.ja.md'
+    default: ''
   diff-size-limit:
     description: 'The maximum total diff size (in bytes) to review. Files exceeding this are excluded.'
     required: false

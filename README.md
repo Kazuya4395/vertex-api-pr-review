@@ -57,7 +57,7 @@ jobs:
 | `gcp-location` | Google Cloud region. Claude models require specific regions like `us-east5` | `us-east5` |
 | `gcp-credentials` | JSON content of your GCP service account key | (required) |
 | `model` | Vertex AI model name (e.g. `gemini-2.5-pro`, `claude-sonnet-4-5@20250929`) | `gemini-2.5-pro` |
-| `system-prompt-path` | Path to a custom system prompt. Output must be `ReviewResult` JSON | `prompts/pr-review/system.ja.md` |
+| `system-prompt-path` | Path to a custom system prompt relative to your repo root. Output must be `ReviewResult` JSON. If empty, uses the built-in Japanese prompt | `''` (built-in) |
 | `diff-size-limit` | Maximum total diff size in bytes | `100000` |
 | `timeout` | Timeout in milliseconds for the Vertex AI API call | `120000` |
 | `max-files` | Maximum number of files to review | `50` |

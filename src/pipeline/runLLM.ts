@@ -34,9 +34,12 @@ export const runReviewLLM = async (
   filePatches: Map<string, string>,
 ): Promise<RunLLMResult> => {
   // システムプロンプトの読み込み
+  // カスタムパス指定なしの場合は Action ルートからデフォルトプロンプトを読む
+  // GITHUB_ACTION_PATH は Action 自体のディレクトリを指す（実行リポジトリではない）
   let systemPromptPath = inputs.systemPromptPath;
   if (!systemPromptPath) {
-    systemPromptPath = path.join(__dirname, '../../prompts/pr-review/system.ja.md');
+    const actionRoot = process.env.GITHUB_ACTION_PATH || path.join(__dirname, '..');
+    systemPromptPath = path.join(actionRoot, 'prompts/pr-review/system.ja.md');
   }
 
   // FR-022: language=en 時のフォールバック

@@ -57,7 +57,7 @@ jobs:
 | `gcp-location` | Google Cloud リージョン。Claude モデルは `us-east5` 等の特定リージョンが必要 | `us-east5` |
 | `gcp-credentials` | GCP サービスアカウントキーの JSON | (必須) |
 | `model` | Vertex AI モデル名 (例: `gemini-2.5-pro`, `claude-sonnet-4-5@20250929`) | `gemini-2.5-pro` |
-| `system-prompt-path` | カスタムプロンプトのパス。出力は `ReviewResult` JSON 必須 | `prompts/pr-review/system.ja.md` |
+| `system-prompt-path` | カスタムプロンプトのパス（リポジトリルートからの相対パス）。出力は `ReviewResult` JSON 必須。空の場合は組込みの日本語プロンプトを使用 | `''` (組込み) |
 | `diff-size-limit` | diff 合計サイズの上限 (bytes) | `100000` |
 | `timeout` | Vertex AI API のタイムアウト (ms) | `120000` |
 | `max-files` | レビュー対象の最大ファイル数 | `50` |
